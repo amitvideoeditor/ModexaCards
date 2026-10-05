@@ -1,0 +1,463 @@
+/* ReviewTap Comprehensive Modern Design System */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg-app: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --primary-blue: #0B63E5;
+  --primary-blue-hover: #0952C2;
+  --primary-blue-light: #EFF6FF;
+  --primary-blue-subtle: #DBEAFE;
+  --primary-blue-border: #BFDBFE;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  --border-color: #E2E8F0;
+  --border-subtle: #F1F5F9;
+  
+  --success-bg: #DCFCE7;
+  --success-text: #15803D;
+  --success-dot: #22C55E;
+  
+  --warning-bg: #FEF3C7;
+  --warning-text: #B45309;
+  --warning-dot: #F59E0B;
+  
+  --danger: #EF4444;
+  --danger-bg: #FEE2E2;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Core Buttons */
+.btn-primary {
+  background-color: #0B63E5 !important;
+  color: #FFFFFF !important;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 2px rgba(11, 99, 229, 0.2);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.btn-primary:hover {
+  background-color: #0952C2 !important;
+}
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.btn-secondary:hover {
+  background-color: #F8FAFC !important;
+}
+
+.btn-blue-outline {
+  background-color: #FFFFFF !important;
+  color: #0B63E5 !important;
+  border: 1px solid #0B63E5 !important;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.btn-blue-outline:hover {
+  background-color: #EFF6FF !important;
+}
+
+.btn-danger-outline {
+  background-color: #FFFFFF !important;
+  color: #EF4444 !important;
+  border: 1px solid #EF4444 !important;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.btn-danger-outline:hover {
+  background-color: #FEF2F2 !important;
+}
+
+/* Card Surface */
+.surface-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Floating Mobile Scan Button */
+.scan-btn-floating {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: #0B63E5;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(11, 99, 229, 0.45);
+  border: 4px solid #FFFFFF;
+  margin-top: -24px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.scan-btn-floating:hover {
+  background-color: #0952C2;
+}
+.scan-btn-floating:active {
+  transform: scale(0.95);
+}
+
+/* Slide-in Drawer */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(2px);
+  z-index: 99;
+}
+.drawer-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 420px;
+  background-color: #FFFFFF;
+  border-left: 1px solid #E2E8F0;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* Chart Styles */
+.chart-container-box {
+  position: relative;
+  height: 160px;
+  width: 100%;
+  margin-top: 16px;
+}
+.chart-grid-line {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 1px;
+  background-color: #F1F5F9;
+}
+.chart-bar-group {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 100%;
+  padding-left: 28px;
+  padding-bottom: 24px;
+}
+.chart-single-col {
+  flex: 1;
+  max-width: 28px;
+  margin: 0 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  position: relative;
+  cursor: pointer;
+}
+.chart-stacked-bar {
+  width: 100%;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.chart-single-col:hover .chart-stacked-bar {
+  transform: scaleY(1.02);
+  filter: brightness(1.05);
+}
+.chart-scan-segment {
+  background-color: #93C5FD;
+  width: 100%;
+}
+.chart-tap-segment {
+  background-color: #1D4ED8;
+  width: 100%;
+}
+.chart-x-label {
+  position: absolute;
+  bottom: -20px;
+  font-size: 10px;
+  font-weight: 500;
+  color: #64748B;
+  white-space: nowrap;
+}
+
+/* Table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-table th {
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+  text-align: left;
+  border-bottom: 1px solid #E2E8F0;
+}
+.data-table td {
+  padding: 14px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid #F8FAFC;
+  vertical-align: middle;
+}
+.data-table tr:hover td {
+  background-color: #F8FAFC;
+}
+
+/* Mobile Frame Mockup */
+.mobile-device-frame {
+  max-width: 390px;
+  width: 100%;
+  margin: 30px auto;
+  background: #FFFFFF;
+  border-radius: 42px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.4), 0 0 0 10px #0F172A;
+  overflow: hidden;
+  position: relative;
+  min-height: 820px;
+}
+
+/* Common Layout Helpers */
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+.flex-col { flex-direction: column; }
+.flex-1 { flex: 1 1 0%; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.gap-1 { gap: 4px; }
+.gap-1\.5 { gap: 6px; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+.gap-5 { gap: 20px; }
+.gap-6 { gap: 24px; }
+
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.col-span-5 { grid-column: span 5 / span 5; }
+.col-span-7 { grid-column: span 7 / span 7; }
+
+.p-4 { padding: 16px; }
+.p-5 { padding: 20px; }
+.p-6 { padding: 24px; }
+.p-8 { padding: 32px; }
+
+/* Responsive switches */
+@media (min-width: 1024px) {
+  .desktop-only { display: block !important; }
+  .desktop-flex { display: flex !important; }
+  .mobile-only { display: none !important; }
+}
+@media (max-width: 1023px) {
+  .desktop-only { display: none !important; }
+  .desktop-flex { display: none !important; }
+  .mobile-only { display: block !important; }
+}
+
+/* ========================================================
+   THEMED SCROLLBAR & MOBILE SCROLLBAR REMOVAL
+   ======================================================== */
+
+/* Desktop Custom Themed Scrollbar (Sleek 6px slate/blue pill) */
+@media (min-width: 1024px) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #0B63E5;
+  }
+}
+
+/* Mobile & Phone Preview: Hide scrollbar / slider completely across all pages */
+@media (max-width: 1023px) {
+  html, body, #root, div, main, aside, section, article, table, ul, ol, form, input, textarea {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  ::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
+}
+
+.mobile-view, .mobile-view * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.mobile-view ::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* ========================================================
+   PRINT / PDF EXPORT ENGINE (Printing Vendor Sheet)
+   ======================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 10mm;
+  }
+
+  body, html, #root {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide app shell, navigation, modals, headers, topbars during print */
+  aside,
+  header,
+  nav,
+  .no-print,
+  .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Ensure print sheet container is visible and cleanly positioned */
+  .printable-batch-sheet {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  .print-page-break {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  .print-card-unit {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 1 QR per page printing rule */
+  .print-single-qr-page {
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 30mm 20mm !important;
+    background: #FFFFFF !important;
+  }
+}
+

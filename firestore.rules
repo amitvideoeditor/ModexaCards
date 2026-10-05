@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Cards collection: public read for NFC tap & QR scan redirects; write for admin management
+    match /cards/{cardId} {
+      allow read, write: if true;
+    }
+    // Real-time scan and tap activity logs
+    match /activities/{activityId} {
+      allow read, write: if true;
+    }
+    // Aggregated platform telemetry & counters
+    match /stats/{statId} {
+      allow read, write: if true;
+    }
+    // Team directory & permissions
+    match /teamMembers/{memberId} {
+      allow read, write: if true;
+    }
+    // Platform routing and brand configuration
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+    // Fallback rule
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -1,0 +1,348 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="acrylic-stand-svg-CRD-0043" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 380 399">
+  <!-- Generator: Adobe Illustrator 29.8.1, SVG Export Plug-In . SVG Version: 2.1.1 Build 2)  -->
+  <defs>
+    <style>
+      .st0 {
+        stroke: #00a8ff;
+        stroke-width: 4.27px;
+      }
+
+      .st0, .st1, .st2, .st3, .st4, .st5, .st6, .st7, .st8, .st9, .st10 {
+        fill: none;
+      }
+
+      .st0, .st1, .st11, .st3, .st4, .st5, .st6, .st7, .st8, .st9, .st10, .st12 {
+        stroke-miterlimit: 3.8;
+      }
+
+      .st0, .st1, .st3, .st4, .st5, .st6, .st7, .st8, .st9, .st10 {
+        stroke-linecap: round;
+      }
+
+      .st13 {
+        fill: #ea4335;
+      }
+
+      .st14 {
+        fill: #475569;
+        font-size: 10.93px;
+        letter-spacing: .03em;
+      }
+
+      .st14, .st15, .st16, .st17, .st18, .st19, .st20, .st21, .st22, .st23, .st24, .st25, .st26, .st27, .st28, .st29, .st30, .st31 {
+        font-weight: 700;
+      }
+
+      .st14, .st15, .st16, .st17, .st18, .st19, .st20, .st21, .st22, .st23, .st24, .st25, .st26, .st27, .st29, .st30, .st31 {
+        font-family: Arial-BoldMT, Arial;
+      }
+
+      .st14, .st15, .st16, .st17, .st18, .st19, .st21, .st22, .st23, .st24, .st32, .st33, .st25, .st34, .st26, .st27, .st28, .st35, .st29, .st30, .st31 {
+        isolation: isolate;
+      }
+
+      .st15 {
+        font-size: 11.86px;
+        letter-spacing: .06em;
+      }
+
+      .st15, .st16, .st17, .st18, .st19, .st21, .st22, .st23, .st24, .st32, .st25, .st26, .st27, .st29, .st30, .st31 {
+        fill: #0f172a;
+      }
+
+      .st36 {
+        filter: url(#star-glow-CRD0043);
+      }
+
+      .st1 {
+        stroke-width: 2.09px;
+      }
+
+      .st1, .st11, .st4, .st8 {
+        stroke: #0f172a;
+      }
+
+      .st16 {
+        font-size: 11.86px;
+        letter-spacing: .06em;
+      }
+
+      .st37, .st11, .st34, .st35, .st12 {
+        fill: #fff;
+      }
+
+      .st38 {
+        fill: #4285f4;
+      }
+
+      .st17 {
+        font-size: 11.85px;
+        letter-spacing: .06em;
+      }
+
+      .st11 {
+        stroke-width: 1.9px;
+      }
+
+      .st18 {
+        font-size: 11.85px;
+        letter-spacing: .06em;
+      }
+
+      .st19 {
+        font-size: 12.35px;
+        letter-spacing: .05em;
+      }
+
+      .st39 {
+        fill: #ffd000;
+        stroke: #f59e0b;
+        stroke-linejoin: round;
+        stroke-width: .47px;
+      }
+
+      .st40 {
+        fill: #34a853;
+      }
+
+      .st3 {
+        stroke: #cbd5e1;
+      }
+
+      .st3, .st4 {
+        stroke-width: 1.33px;
+      }
+
+      .st20 {
+        letter-spacing: 0em;
+      }
+
+      .st41 {
+        font-family: ArialMT, Arial;
+      }
+
+      .st21 {
+        font-size: 11.87px;
+        letter-spacing: .06em;
+      }
+
+      .st22 {
+        font-size: 11.84px;
+        letter-spacing: .06em;
+      }
+
+      .st23 {
+        font-size: 11.84px;
+        letter-spacing: .06em;
+      }
+
+      .st24 {
+        font-size: 11.87px;
+        letter-spacing: .06em;
+      }
+
+      .st32 {
+        font-size: 5.37px;
+      }
+
+      .st32, .st34, .st35 {
+        font-family: Arial-Black, Arial;
+        font-weight: 800;
+      }
+
+      .st33 {
+        fill: #4a5868;
+        font-size: 9.97px;
+      }
+
+      .st25 {
+        font-size: 11.88px;
+        letter-spacing: .06em;
+      }
+
+      .st5 {
+        stroke: #34a853;
+      }
+
+      .st5, .st7, .st9, .st10 {
+        stroke-width: 2.85px;
+      }
+
+      .st34 {
+        letter-spacing: .02em;
+      }
+
+      .st34, .st35 {
+        font-size: 19.95px;
+      }
+
+      .st26 {
+        font-size: 11.83px;
+        letter-spacing: .06em;
+      }
+
+      .st27 {
+        font-size: 11.87px;
+        letter-spacing: .06em;
+      }
+
+      .st6 {
+        stroke: #0b63e5;
+        stroke-width: 1.23px;
+      }
+
+      .st7 {
+        stroke: #ea4335;
+      }
+
+      .st42 {
+        filter: url(#shadow-CRD0043);
+      }
+
+      .st8 {
+        stroke-width: 1.71px;
+      }
+
+      .st28 {
+        fill: #94a3b8;
+        font-family: CourierNewPS-BoldMT, 'Courier New';
+        font-size: 7.6px;
+      }
+
+      .st35 {
+        letter-spacing: .02em;
+      }
+
+      .st29 {
+        font-size: 11.87px;
+        letter-spacing: .06em;
+      }
+
+      .st9 {
+        stroke: #fbbc05;
+      }
+
+      .st30 {
+        font-size: 11.83px;
+        letter-spacing: .06em;
+      }
+
+      .st31 {
+        font-size: 11.86px;
+        letter-spacing: .06em;
+      }
+
+      .st10 {
+        stroke: #4285f4;
+      }
+
+      .st43 {
+        fill: url(#linear-gradient);
+      }
+
+      .st44 {
+        fill: #fbbc05;
+      }
+
+      .st12 {
+        stroke: #f8fafc;
+        stroke-width: .95px;
+      }
+    </style>
+    <linearGradient id="linear-gradient" x1="40.89" y1="382.89" x2="440.89" y2="172.89" gradientTransform="translate(-38.45 363) scale(.95 -.95)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0731bd"/>
+      <stop offset="1" stop-color="#0b3cbf"/>
+    </linearGradient>
+    <filter id="star-glow-CRD0043" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1" flood-color="#D97706" flood-opacity="0.35" stdDeviation="1.2"/>
+    </filter>
+    <filter id="shadow-CRD0043" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2.5" flood-color="#000000" flood-opacity="0.16" stdDeviation="3.5"/>
+    </filter>
+  </defs>
+  <path class="st2" d=""/>
+  <rect class="st37" width="380" height="399" rx="19" ry="19"/>
+  <path class="st43" d="M0,0h380v197.6c-95,0-133,19-190,19S95,197.6,0,197.6V0Z"/>
+  <path class="st0" d="M0,197.6c95,0,133,19,190,19s95-19,190-19"/>
+  <g id="topStars" class="st36">
+    <path class="st39" d="M125.4,32.3l3.61,8.07h8.55l-6.94,5.03,2.56,8.27-7.79-5.03-7.79,5.03,2.56-8.27-6.94-5.03h8.55l3.61-8.07Z"/>
+    <path class="st39" d="M157.7,32.3l3.61,8.07h8.55l-6.94,5.03,2.56,8.27-7.79-5.03-7.79,5.03,2.56-8.27-6.94-5.03h8.55l3.61-8.07Z"/>
+    <path class="st39" d="M190,32.3l3.61,8.07h8.55l-6.94,5.03,2.56,8.27-7.79-5.03-7.79,5.03,2.56-8.27-6.94-5.03h8.55l3.61-8.07Z"/>
+    <path class="st39" d="M222.3,32.3l3.61,8.07h8.55l-6.94,5.03,2.56,8.27-7.79-5.03-7.79,5.03,2.56-8.27-6.94-5.03h8.55l3.61-8.07Z"/>
+    <path class="st39" d="M254.6,32.3l3.61,8.07h8.55l-6.93,5.03,2.57,8.27-7.79-5.03-7.79,5.03,2.57-8.27-6.94-5.03h8.55l3.61-8.07Z"/>
+  </g>
+  <text class="st34" transform="translate(51.47 96.9)"><tspan x="0" y="0">WE WOULD APPRECIATE</tspan></text>
+  <text class="st35" transform="translate(57.51 125.4)"><tspan x="0" y="0">YOUR GOOGLE REVIEW</tspan></text>
+  <g id="googleMedallion" class="st42">
+    <circle class="st12" cx="190" cy="212.8" r="39.9"/>
+    <g>
+      <path class="st38" d="M212.6,213.25c0-1.71-.2-3.32-.5-4.93h-22.15v9.16h12.79c-.6,3.02-2.42,5.54-5.14,7.25v6.24h7.75c4.53-4.13,7.25-10.37,7.25-17.72Z"/>
+      <path class="st40" d="M189.94,236.41c6.34,0,11.78-2.11,15.51-5.44l-7.75-6.24c-2.11,1.41-4.73,2.32-7.75,2.32-6.14,0-11.38-4.13-13.19-9.77h-8.06v6.44c3.93,7.55,11.98,12.69,21.25,12.69Z"/>
+      <path class="st44" d="M176.75,217.27c-.5-1.41-.81-2.92-.81-4.53s.3-3.12.81-4.53v-6.44h-8.06c-1.71,3.42-2.72,7.05-2.72,10.98s1.01,7.55,2.72,10.98l8.06-6.44Z"/>
+      <path class="st13" d="M189.94,198.44c3.52,0,6.65,1.21,9.06,3.52l6.75-6.75c-4.13-3.83-9.47-6.14-15.81-6.14-9.26,0-17.32,5.14-21.25,12.69l8.06,6.44c1.81-5.64,7.05-9.77,13.19-9.77Z"/>
+    </g>
+  </g>
+  <g id="leftTapSection">
+    <g>
+      <text class="st26" transform="translate(42.59 282.12) rotate(-19.46) scale(.97 1) skewX(-1.39)"><tspan x="0" y="0">T</tspan></text>
+      <text class="st22" transform="translate(49.9 279.54) rotate(-16.66) scale(.97 1) skewX(-1.22)"><tspan x="0" y="0">A</tspan></text>
+      <text class="st18" transform="translate(58.54 276.98) rotate(-13.63) scale(.97 1) skewX(-1.01)"><tspan x="0" y="0">P</tspan></text>
+      <text class="st16" transform="translate(66.68 275.07) rotate(-11.4) scale(.96 1) skewX(-.86)"><tspan x="0" y="0"> </tspan></text>
+      <text class="st15" transform="translate(70.51 274.27) rotate(-9.13) scale(.96 1) skewX(-.69)"><tspan x="0" y="0">Y</tspan></text>
+      <text class="st21" transform="translate(78.77 272.94) rotate(-5.72) scale(.96 1) skewX(-.44)"><tspan x="0" y="0">O</tspan></text>
+      <text class="st24" transform="translate(88.35 272.01) rotate(-2.13) scale(.96 1) skewX(-.16)"><tspan x="0" y="0">U</tspan></text>
+      <text class="st25" transform="translate(97.32 271.7) rotate(1.36) scale(.96 1) skewX(.1)"><tspan x="0" y="0">R</tspan></text>
+      <text class="st27" transform="translate(106.3 271.98) rotate(3.85) scale(.96 1) skewX(.3)"><tspan x="0" y="0"> </tspan></text>
+      <text class="st29" transform="translate(110.2 272.22) rotate(6.21) scale(.96 1) skewX(.48)"><tspan x="0" y="0">P</tspan></text>
+      <text class="st31" transform="translate(118.51 273.13) rotate(9.49) scale(.96 1) skewX(.72)"><tspan x="0" y="0">H</tspan></text>
+      <text class="st17" transform="translate(127.38 274.63) rotate(12.91) scale(.97 1) skewX(.96)"><tspan x="0" y="0">O</tspan></text>
+      <text class="st23" transform="translate(136.77 276.81) rotate(16.19) scale(.97 1) skewX(1.18)"><tspan x="0" y="0">N</tspan></text>
+      <text class="st30" transform="translate(145.41 279.35) rotate(19.12) scale(.97 1) skewX(1.37)"><tspan x="0" y="0">E</tspan></text>
+    </g>
+    <g>
+      <ellipse class="st11" cx="90.27" cy="308.24" rx="24.7" ry="17.1"/>
+      <g>
+        <path class="st1" d="M78.29,300.67c3.55,0,6.42,3.39,6.42,7.57s-2.87,7.57-6.42,7.57"/>
+        <path class="st1" d="M85.89,298.4c5.31,2.17,7.9,8.33,5.77,13.77-1.05,2.69-3.14,4.83-5.77,5.9"/>
+        <path class="st1" d="M93.49,296.13c6.64,3.45,9.25,11.66,5.82,18.34-1.29,2.52-3.32,4.57-5.82,5.87"/>
+      </g>
+    </g>
+    <g id="handWithPhone">
+      <g>
+        <path class="st8" d="M106.22,325.58c-5.02,0-6.45,1.69-6.45,3.39s1.43,3.05,6.45,3.05"/>
+        <path class="st8" d="M106.22,332.36c-5.02,0-6.45,1.69-6.45,3.39s1.43,3.05,6.45,3.05"/>
+        <path class="st8" d="M106.22,339.13c-5.02,0-6.45,1.69-6.45,3.39s1.43,3.05,6.45,3.05"/>
+      </g>
+      <path class="st11" d="M122.51,344.27v1.3c0,1.58-1.28,2.87-2.87,2.87h-12.82c-1.58,0-2.87-1.28-2.87-2.87v-27.23c0-1.58,1.28-2.87,2.87-2.87h12.82c1.58,0,2.87,1.28,2.87,2.87v19.89"/>
+      <path class="st11" d="M122.51,344.27"/>
+      <path class="st11" d="M122.51,338.24"/>
+      <path class="st8" d="M122.88,327.22c4.28,1.01,7.57,4.42,10.08,12.95.72,2.43,1.86,5.34,4.48,9.15"/>
+      <path class="st8" d="M124.14,339.63c-3.6-3.77-8.79.62,1.59,7.22"/>
+      <g>
+        <line class="st4" x1="110.99" y1="318.35" x2="115.78" y2="318.35"/>
+        <text class="st32" transform="translate(107.26 329.91)"><tspan x="0" y="0">NFC</tspan></text>
+        <g>
+          <path class="st6" d="M109.08,334.4c2.87-1.43,5.73-1.43,8.6,0"/>
+          <path class="st6" d="M110.52,336.55c1.91-.96,3.82-.96,5.73,0"/>
+          <path class="st6" d="M111.66,338.99c1.15-.57,2.3-.57,3.45,0"/>
+        </g>
+      </g>
+    </g>
+  </g>
+  <line class="st3" x1="190" y1="275.5" x2="190" y2="305.9"/>
+  <text class="st14" transform="translate(181.62 318.98)"><tspan x="0" y="0">OR</tspan></text>
+  <line class="st3" x1="190" y1="326.8" x2="190" y2="357.2"/>
+  <g id="rightQrSection">
+    <text class="st19" transform="translate(252.63 262.2)"><tspan x="0" y="0">SCAN QR</tspan></text>
+    <g id="cornerBrackets">
+      <path class="st7" d="M238.45,286.9v-12.35c0-1.57,1.28-2.85,2.85-2.85h12.35"/>
+      <path class="st9" d="M312.55,271.7h12.35c1.57,0,2.85,1.28,2.85,2.85v12.35"/>
+      <path class="st5" d="M238.45,345.8v12.35c0,1.57,1.28,2.85,2.85,2.85h12.35"/>
+      <path class="st10" d="M312.55,361h12.35c1.57,0,2.85-1.28,2.85-2.85v-12.35"/>
+    </g>
+  </g>
+  <text class="st33" transform="translate(143.71 383.8)"><tspan class="st41" x="0" y="0">Powered by </tspan><tspan class="st20" x="55.45" y="0">Modexa</tspan></text>
+  <text class="st28" transform="translate(328.31 387.6)"><tspan x="0" y="0">CRD-0043</tspan></text>
+  <path class="st2" d=""/>
+</svg>
