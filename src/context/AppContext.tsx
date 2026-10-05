@@ -146,8 +146,16 @@ export function getHashForView(view: ViewScreen, cardId?: string): string {
 }
 
 export function parseHash(hash: string): { view: ViewScreen; cardId?: string } {
+  let hasSession = false;
+  if (typeof window !== 'undefined') {
+    try {
+      const session = localStorage.getItem('modexa_admin_session');
+      hasSession = Boolean(session && JSON.parse(session)?.email);
+    } catch {}
+  }
+
   if (!hash || hash === '#' || hash === '#/') {
-    return { view: 'dashboard' };
+    return { view: hasSession ? 'dashboard' : 'login' };
   }
   const clean = hash.replace(/^#\/?/, '');
   const [path, queryStr] = clean.split('?');
@@ -168,7 +176,11 @@ export function parseHash(hash: string): { view: ViewScreen; cardId?: string } {
     'profile',
   ];
 
-  const view = validViews.includes(path as ViewScreen) ? (path as ViewScreen) : 'dashboard';
+  if (!hasSession && path !== 'login') {
+    return { view: 'login', cardId };
+  }
+
+  const view = validViews.includes(path as ViewScreen) ? (path as ViewScreen) : (hasSession ? 'dashboard' : 'login');
   return { view, cardId };
 }
 
@@ -219,19 +231,92 @@ function getInitialStoredSettings(): PlatformSettings {
   return defaultPlatformSettings;
 }
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const initialNav = typeof window !== 'undefined' ? parseHash(window.location.hash) : { view: 'dashboard' as ViewScreen };
-
-  const defaultAdminProfile: UserProfile = {
+export const adminDirectory: Record<string, { name: string; email: string; phone: string; location: string; bio: string; department: string }> = {
+  'amit@modexacards.com': {
     name: 'Amit Maurya',
     email: 'amit@modexacards.com',
-    role: 'Admin',
     phone: '+91 98111 22334',
     location: 'New Delhi, India',
     bio: 'Lead System Administrator managing enterprise Modexa TapCard NFC deployments & partner clinics across Delhi NCR.',
     department: 'Operations & Field Success',
-    notificationsEnabled: true,
-  };
+  },
+  'admin@modexacards.com': {
+    name: 'Amit Maurya',
+    email: 'admin@modexacards.com',
+    phone: '+91 98111 22334',
+    location: 'New Delhi, India',
+    bio: 'Lead System Administrator managing enterprise Modexa TapCard NFC deployments & partner clinics across Delhi NCR.',
+    department: 'Operations & Field Success',
+  },
+  'shubham@modexacards.com': {
+    name: 'Shubham',
+    email: 'shubham@modexacards.com',
+    phone: '+91 98111 55667',
+    location: 'New Delhi, India',
+    bio: 'System Administrator (Shubham) managing enterprise Modexa TapCard NFC deployments & partner accounts.',
+    department: 'Executive Administration',
+  },
+  'shubham.admin@modexacards.com': {
+    name: 'Shubham',
+    email: 'shubham.admin@modexacards.com',
+    phone: '+91 98111 55667',
+    location: 'New Delhi, India',
+    bio: 'System Administrator (Shubham) managing enterprise Modexa TapCard NFC deployments & partner accounts.',
+    department: 'Executive Administration',
+  },
+  'rahul@modexacards.com': {
+    name: 'Rahul Verma',
+    email: 'rahul@modexacards.com',
+    phone: '+91 98111 66778',
+    location: 'New Delhi, India',
+    bio: 'System Administrator (Rahul Verma) managing enterprise Modexa hardware production and card stock.',
+    department: 'Hardware Production & Infrastructure',
+  },
+  'admin2@modexacards.com': {
+    name: 'Rahul Verma',
+    email: 'admin2@modexacards.com',
+    phone: '+91 98111 66778',
+    location: 'New Delhi, India',
+    bio: 'System Administrator (Rahul Verma) managing enterprise Modexa hardware production and card stock.',
+    department: 'Hardware Production & Infrastructure',
+  },
+};
+
+export const defaultAdminProfile: UserProfile = {
+  name: 'Amit Maurya',
+  email: 'amit@modexacards.com',
+  role: 'Admin',
+  phone: '+91 98111 22334',
+  location: 'New Delhi, India',
+  bio: 'Lead System Administrator managing enterprise Modexa TapCard NFC deployments & partner clinics across Delhi NCR.',
+  department: 'Operations & Field Success',
+  notificationsEnabled: true,
+};
+
+export const guestProfile: UserProfile = {
+  name: 'Staff Member',
+  email: '',
+  role: 'Viewer',
+  phone: '',
+  location: 'New Delhi, India',
+  bio: 'Unauthenticated visitor',
+  department: 'Field Operations',
+  notificationsEnabled: false,
+};
+
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const initialNav = typeof window !== 'undefined' ? parseHash(window.location.hash) : { view: 'login' as ViewScreen };
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      const session = localStorage.getItem('modexa_admin_session');
+      if (session) {
+        const parsed = JSON.parse(session);
+        return Boolean(parsed && parsed.email);
+      }
+    } catch {}
+    return false;
+  });
 
   const [user, setUser] = useState<UserProfile>(() => {
     try {
@@ -239,38 +324,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (session) {
         const parsed = JSON.parse(session);
         if (parsed && parsed.email) {
+          const clean = parsed.email.trim().toLowerCase();
+          const matchedAdmin = adminDirectory[clean];
           return {
-            name: parsed.name || defaultAdminProfile.name,
-            email: parsed.email || defaultAdminProfile.email,
-            role: parsed.role || defaultAdminProfile.role,
-            phone: parsed.phone || defaultAdminProfile.phone,
-            location: parsed.location || defaultAdminProfile.location,
-            bio: parsed.bio || defaultAdminProfile.bio,
-            department: parsed.department || defaultAdminProfile.department,
+            name: parsed.name || matchedAdmin?.name || 'Staff Member',
+            email: parsed.email,
+            role: parsed.role || (matchedAdmin ? 'Admin' : 'Viewer'),
+            phone: parsed.phone || matchedAdmin?.phone || '',
+            location: parsed.location || matchedAdmin?.location || 'New Delhi, India',
+            bio: parsed.bio || matchedAdmin?.bio || '',
+            department: parsed.department || matchedAdmin?.department || 'Field Operations',
             notificationsEnabled: true,
           };
         }
       }
     } catch {}
-    return defaultAdminProfile;
+    return guestProfile;
   });
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    try {
-      const session = localStorage.getItem('modexa_admin_session');
-      if (session) {
-        const parsed = JSON.parse(session);
-        return !!parsed && !!parsed.email;
-      }
-    } catch {}
-    return false;
-  });
   const [cards, setCards] = useState<CardItem[]>(getInitialStoredCards);
   const [stats, setStats] = useState<StatSummary>(getInitialStoredStats);
   const [activities, setActivities] = useState<ActivityRecord[]>(getInitialStoredActivities);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initialTeamMembers);
   const [settings, setSettings] = useState<PlatformSettings>(getInitialStoredSettings);
-  const [currentView, setCurrentView] = useState<ViewScreen>(initialNav.view);
+  const [currentView, setCurrentView] = useState<ViewScreen>(() => {
+    try {
+      const session = localStorage.getItem('modexa_admin_session');
+      const hasAuth = Boolean(session && JSON.parse(session)?.email);
+      if (!hasAuth) {
+        return 'login';
+      }
+    } catch {}
+    return initialNav.view || 'login';
+  });
   const [activeDesktopNav, setActiveDesktopNav] = useState<DesktopNav>('Dashboard');
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>('home');
   const [selectedCardId, setSelectedCardId] = useState<string>(initialNav.cardId || '');
@@ -1072,58 +1158,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return getStoredAdminPassword();
   };
 
-  // Pre-configured Admin profiles
-  const adminDirectory: Record<string, { name: string; email: string; phone: string; location: string; bio: string; department: string }> = {
-    'amit@modexacards.com': {
-      name: 'Amit Maurya',
-      email: 'amit@modexacards.com',
-      phone: '+91 98111 22334',
-      location: 'New Delhi, India',
-      bio: 'Lead System Administrator managing enterprise Modexa TapCard NFC deployments & partner clinics across Delhi NCR.',
-      department: 'Operations & Field Success',
-    },
-    'admin@modexacards.com': {
-      name: 'Amit Maurya',
-      email: 'admin@modexacards.com',
-      phone: '+91 98111 22334',
-      location: 'New Delhi, India',
-      bio: 'Lead System Administrator managing enterprise Modexa TapCard NFC deployments & partner clinics across Delhi NCR.',
-      department: 'Operations & Field Success',
-    },
-    'shubham@modexacards.com': {
-      name: 'Shubham',
-      email: 'shubham@modexacards.com',
-      phone: '+91 98111 55667',
-      location: 'New Delhi, India',
-      bio: 'System Administrator (Shubham) managing enterprise Modexa TapCard NFC deployments & partner accounts.',
-      department: 'Executive Administration',
-    },
-    'shubham.admin@modexacards.com': {
-      name: 'Shubham',
-      email: 'shubham.admin@modexacards.com',
-      phone: '+91 98111 55667',
-      location: 'New Delhi, India',
-      bio: 'System Administrator (Shubham) managing enterprise Modexa TapCard NFC deployments & partner accounts.',
-      department: 'Executive Administration',
-    },
-    'rahul@modexacards.com': {
-      name: 'Rahul Verma',
-      email: 'rahul@modexacards.com',
-      phone: '+91 98111 66778',
-      location: 'New Delhi, India',
-      bio: 'System Administrator (Rahul Verma) managing enterprise Modexa hardware production and card stock.',
-      department: 'Hardware Production & Infrastructure',
-    },
-    'admin2@modexacards.com': {
-      name: 'Rahul Verma',
-      email: 'admin2@modexacards.com',
-      phone: '+91 98111 66778',
-      location: 'New Delhi, India',
-      bio: 'System Administrator (Rahul Verma) managing enterprise Modexa hardware production and card stock.',
-      department: 'Hardware Production & Infrastructure',
-    },
-  };
-
   const login = async (email: string, pass: string): Promise<{ success: boolean; message: string }> => {
     const cleanEmail = email.trim().toLowerCase();
     const adminPass = getStoredAdminPassword();
@@ -1201,8 +1235,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.removeItem('modexa_admin_session');
     } catch {}
     setIsAuthenticated(false);
-    setUser(defaultAdminProfile);
-    navigateTo('login');
+    setUser(guestProfile);
+    applyViewState('login', undefined, true);
     showToast('You have been securely logged out.', 'info');
   };
 
@@ -1292,38 +1326,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const applyViewState = (view: ViewScreen, cardId?: string, closeModals: boolean = true) => {
+    let effectiveAuth = false;
+    try {
+      const session = localStorage.getItem('modexa_admin_session');
+      effectiveAuth = Boolean(session && JSON.parse(session)?.email);
+    } catch {}
+
+    const targetView: ViewScreen = !effectiveAuth && view !== 'login' ? 'login' : view;
+
     if (cardId) {
       setSelectedCardId(cardId);
     }
-    setCurrentView(view);
+    setCurrentView(targetView);
 
-    if (view === 'dashboard') {
+    if (targetView === 'login') {
+      setIsAuthenticated(false);
+      if (typeof window !== 'undefined' && window.location.hash !== '#/login') {
+        window.history.replaceState({ view: 'login' }, '', '#/login');
+      }
+    } else if (targetView === 'dashboard') {
       setActiveDesktopNav('Dashboard');
       setActiveMobileTab('home');
-    } else if (view === 'cards') {
+    } else if (targetView === 'cards') {
       setActiveDesktopNav('Cards');
       setActiveMobileTab('cards');
-    } else if (view === 'create-cards') {
+    } else if (targetView === 'create-cards') {
       setActiveDesktopNav('Create Cards');
-    } else if (view === 'businesses' || view === 'business-details') {
+    } else if (targetView === 'businesses' || targetView === 'business-details') {
       setActiveDesktopNav('Businesses');
       setActiveMobileTab('businesses');
-    } else if (view === 'analytics') {
+    } else if (targetView === 'analytics') {
       setActiveDesktopNav('Analytics');
-    } else if (view === 'activity') {
+    } else if (targetView === 'activity') {
       setActiveDesktopNav('Activity');
-    } else if (view === 'team') {
+    } else if (targetView === 'team') {
       setActiveDesktopNav('Team');
-    } else if (view === 'settings') {
+    } else if (targetView === 'settings') {
       setActiveDesktopNav('Settings');
-    } else if (view === 'profile') {
+    } else if (targetView === 'profile') {
       setActiveDesktopNav('Profile');
       setActiveMobileTab('profile');
-    } else if (view === 'login') {
-      setIsAuthenticated(false);
-      try {
-        localStorage.removeItem('modexa_admin_session');
-      } catch {}
     }
 
     if (closeModals) {
@@ -1336,12 +1378,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const navigateTo = (view: ViewScreen, cardId?: string, replace: boolean = false) => {
-    const targetCardId = cardId || (view === 'business-details' ? selectedCardId : undefined);
-    const targetHash = getHashForView(view, targetCardId);
+    let effectiveAuth = false;
+    try {
+      const session = localStorage.getItem('modexa_admin_session');
+      effectiveAuth = Boolean(session && JSON.parse(session)?.email);
+    } catch {}
+
+    const targetView: ViewScreen = !effectiveAuth && view !== 'login' ? 'login' : view;
+    const targetCardId = cardId || (targetView === 'business-details' ? selectedCardId : undefined);
+    const targetHash = getHashForView(targetView, targetCardId);
 
     // If identical view, cardId, and hash, no need to push duplicate entry
     if (
-      view === currentView &&
+      targetView === currentView &&
       (!cardId || cardId === selectedCardId) &&
       window.location.hash === targetHash
     ) {
@@ -1349,12 +1398,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (replace) {
-      window.history.replaceState({ view, cardId: targetCardId }, '', targetHash);
+      window.history.replaceState({ view: targetView, cardId: targetCardId }, '', targetHash);
     } else {
-      window.history.pushState({ view, cardId: targetCardId }, '', targetHash);
+      window.history.pushState({ view: targetView, cardId: targetCardId }, '', targetHash);
     }
 
-    applyViewState(view, targetCardId, true);
+    applyViewState(targetView, targetCardId, true);
   };
 
   const goBack = () => {
@@ -1367,29 +1416,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Sync with browser back / forward arrow buttons
   useEffect(() => {
+    let hasSession = false;
+    try {
+      const session = localStorage.getItem('modexa_admin_session');
+      hasSession = Boolean(session && JSON.parse(session)?.email);
+    } catch {}
+
     const initial = parseHash(window.location.hash);
-    const targetHash = getHashForView(initial.view, initial.cardId || selectedCardId);
+    const effectiveView: ViewScreen = !hasSession ? 'login' : initial.view;
+    const targetHash = getHashForView(effectiveView, initial.cardId || selectedCardId);
 
-    if (!window.location.hash || window.location.hash === '#/') {
-      window.history.replaceState({ view: initial.view, cardId: initial.cardId || selectedCardId }, '', targetHash);
-    } else {
-      window.history.replaceState({ view: initial.view, cardId: initial.cardId || selectedCardId }, '', window.location.hash);
-    }
-
-    applyViewState(initial.view, initial.cardId, false);
+    window.history.replaceState({ view: effectiveView, cardId: initial.cardId || selectedCardId }, '', targetHash);
+    applyViewState(effectiveView, initial.cardId, false);
 
     const handlePopState = (event: PopStateEvent) => {
+      let isAuthed = false;
+      try {
+        const s = localStorage.getItem('modexa_admin_session');
+        isAuthed = Boolean(s && JSON.parse(s)?.email);
+      } catch {}
+
       if (event.state && event.state.view) {
-        applyViewState(event.state.view, event.state.cardId, true);
+        const v = !isAuthed && event.state.view !== 'login' ? 'login' : event.state.view;
+        applyViewState(v, event.state.cardId, true);
       } else {
         const parsed = parseHash(window.location.hash);
-        applyViewState(parsed.view, parsed.cardId, true);
+        const v = !isAuthed && parsed.view !== 'login' ? 'login' : parsed.view;
+        applyViewState(v, parsed.cardId, true);
       }
     };
 
     const handleHashChange = () => {
+      let isAuthed = false;
+      try {
+        const s = localStorage.getItem('modexa_admin_session');
+        isAuthed = Boolean(s && JSON.parse(s)?.email);
+      } catch {}
+
       const parsed = parseHash(window.location.hash);
-      applyViewState(parsed.view, parsed.cardId, true);
+      const v = !isAuthed && parsed.view !== 'login' ? 'login' : parsed.view;
+      applyViewState(v, parsed.cardId, true);
     };
 
     window.addEventListener('popstate', handlePopState);

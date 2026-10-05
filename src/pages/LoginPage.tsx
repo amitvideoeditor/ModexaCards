@@ -208,7 +208,7 @@ export const LoginPage: React.FC = () => {
                     type="email"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
-                    placeholder="Registered Email (e.g. amit@modexacards.com)"
+                    placeholder="Enter registered email address"
                     required
                     style={{
                       width: '100%',
@@ -448,7 +448,7 @@ export const LoginPage: React.FC = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="amit@modexacards.com"
+                    placeholder="Enter registered email"
                     required
                     style={{
                       width: '100%',
@@ -853,7 +853,7 @@ export const MobileLoginPage: React.FC = () => {
                   type="email"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
-                  placeholder="e.g. amit@modexacards.com"
+                  placeholder="Enter registered email"
                   required
                   style={{
                     border: 'none',
@@ -1175,7 +1175,7 @@ export const MobileLoginPage: React.FC = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="amit@modexacards.com"
+                  placeholder="Enter registered email"
                   required
                   style={{
                     border: 'none',
