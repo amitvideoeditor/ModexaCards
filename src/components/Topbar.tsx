@@ -16,6 +16,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { InstallAppButton } from './InstallAppButton';
 
 export const Topbar: React.FC = () => {
   const { user, globalSearch, setGlobalSearch, navigateTo, setActiveDesktopNav, activities, notifications, markAllNotifsAsRead, logout } = useApp();
@@ -281,7 +282,10 @@ export const Topbar: React.FC = () => {
       </form>
 
       {/* Right Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {/* Install as App Button */}
+        <InstallAppButton variant="header" />
+
         {/* Notification Bell with Anchored Dropdown pointing to the Bell Icon */}
         <div ref={notifRef} style={{ position: 'relative' }}>
           <button
@@ -606,9 +610,14 @@ export const Topbar: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  overflow: 'hidden',
                 }}
               >
-                {user.name.charAt(0)}
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  user.name.charAt(0)
+                )}
               </div>
               <span
                 style={{

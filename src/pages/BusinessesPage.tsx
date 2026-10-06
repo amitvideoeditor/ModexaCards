@@ -11,6 +11,8 @@ import {
 import { useApp } from '../context/AppContext';
 import { MobileHeader } from '../components/MobileHeader';
 import { CardStatusBadge } from '../components/CardStatusBadge';
+import { CategoryThumbnailImage } from '../components/CategoryThumbnailImage';
+import { getCategoryThumbnail } from '../data/categoryThumbnails';
 
 export const BusinessesPage: React.FC = () => {
   const { cards, navigateTo, goBack, showToast, isMobile, globalSearch } = useApp();
@@ -47,7 +49,7 @@ export const BusinessesPage: React.FC = () => {
         location: c.location || 'New Delhi',
         owner: c.owner || '—',
         phone: c.phone,
-        thumbnail: c.thumbnail || '',
+        thumbnail: getCategoryThumbnail(c.category, c.thumbnail, c.businessName),
         googleReviewUrl: c.googleReviewUrl || '',
         cards: [c],
         primaryCardId: c.id,
@@ -341,18 +343,12 @@ export const BusinessesPage: React.FC = () => {
                   {/* Top Business Card Header: Thumbnail, Name, Status */}
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <img
-                        src={b.thumbnail}
-                        alt={b.businessName}
-                        style={{
-                          width: '54px',
-                          height: '54px',
-                          borderRadius: '14px',
-                          objectFit: 'cover',
-                          border: '1.5px solid #F1F5F9',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                          flexShrink: 0,
-                        }}
+                      <CategoryThumbnailImage
+                        category={b.category}
+                        thumbnail={b.thumbnail}
+                        businessName={b.businessName}
+                        size={54}
+                        borderRadius={14}
                       />
                       <div>
                         <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>

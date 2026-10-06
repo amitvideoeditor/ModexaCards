@@ -26,6 +26,8 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   updatePassword as fbUpdatePassword,
+  updateProfile as fbUpdateProfile,
+  updateEmail as fbUpdateEmail,
   EmailAuthProvider,
   reauthenticateWithCredential,
   type User,
@@ -33,6 +35,7 @@ import {
 import {
   auth,
   getUserDocFromFirestore,
+  updateUserDocInFirestore,
   type FirestoreUserData,
   isInitialized as isFirebaseInitialized,
   getCardsFromFirestore,
@@ -50,10 +53,11 @@ import {
   deleteCardFromFirestore,
   deleteAllCardsFromFirestore,
 } from '../firebase/config';
+import { getCategoryThumbnail } from '../data/categoryThumbnails';
 
 interface AppContextType {
   user: UserProfile;
-  updateUserProfile: (updates: Partial<UserProfile>) => void;
+  updateUserProfile: (updates: Partial<UserProfile>) => Promise<{ success: boolean; message: string }>;
   isAuthenticated: boolean;
   setIsAuthenticated: (val: boolean) => void;
   authLoading: boolean;
@@ -245,31 +249,52 @@ export const guestProfile: UserProfile = {
   bio: 'Unauthenticated visitor',
   department: 'Field Operations',
   notificationsEnabled: false,
+  avatarUrl: '',
 };
+
+function getInitialStoredUserProfile(): UserProfile {
+  if (typeof window === 'undefined') return guestProfile;
+  try {
+    const raw = localStorage.getItem('modexa_user_profile');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.name === 'string') {
+        return { ...guestProfile, ...parsed };
+      }
+    }
+  } catch (e) {}
+  return guestProfile;
+}
 
 export function mapFirestoreUserToProfile(userDoc: FirestoreUserData, fbUser: User): UserProfile {
   const roleRaw = (userDoc.role || 'admin').trim();
   const capitalizedRole = roleRaw.charAt(0).toUpperCase() + roleRaw.slice(1).toLowerCase();
   return {
     name: userDoc.name || fbUser.displayName || 'Administrator',
-    email: fbUser.email || userDoc.email || '',
+    email: userDoc.email || fbUser.email || '',
     role: capitalizedRole,
     phone: userDoc.phone || '',
     location: userDoc.location || 'New Delhi, India',
     bio: userDoc.bio || 'Modexa TapCard System Administrator',
     department: userDoc.department || 'Executive Administration',
-    notificationsEnabled: true,
+    notificationsEnabled: typeof userDoc.notificationsEnabled === 'boolean' ? userDoc.notificationsEnabled : true,
+    avatarUrl: userDoc.avatarUrl || fbUser.photoURL || '',
   };
 }
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const initialNav = typeof window !== 'undefined' ? parseHash(window.location.hash) : { view: 'dashboard' as ViewScreen };
 
-  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const cachedProfile = getInitialStoredUserProfile();
+  const hasCachedSession = Boolean(
+    cachedProfile && cachedProfile.email && cachedProfile.email.trim() !== ''
+  );
+
+  const [authLoading, setAuthLoading] = useState<boolean>(!hasCachedSession);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [authUserDoc, setAuthUserDoc] = useState<FirestoreUserData | null>(null);
-  const [isAuthenticated, setIsAuthenticatedState] = useState<boolean>(false);
-  const [user, setUser] = useState<UserProfile>(guestProfile);
+  const [isAuthenticated, setIsAuthenticatedState] = useState<boolean>(hasCachedSession);
+  const [user, setUser] = useState<UserProfile>(cachedProfile);
 
   const setIsAuthenticated = (val: boolean) => {
     if (!val) {
@@ -431,9 +456,88 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const updateUserProfile = (updates: Partial<UserProfile>) => {
-    setUser((prev) => ({ ...prev, ...updates }));
-    showToast('Profile information updated successfully!', 'success');
+  const updateUserProfile = async (updates: Partial<UserProfile>): Promise<{ success: boolean; message: string }> => {
+    // 1. Calculate next profile and update local React state immediately
+    const nextProfile: UserProfile = { ...user, ...updates };
+    setUser(nextProfile);
+
+    // Save to local storage cache immediately so page reloads stay instant
+    try {
+      localStorage.setItem('modexa_user_profile', JSON.stringify(nextProfile));
+    } catch {}
+
+    // Synchronize matching team member record in directory if present
+    setTeamMembers((prev) =>
+      prev.map((m) =>
+        m.email.toLowerCase() === (nextProfile.email || '').toLowerCase()
+          ? { ...m, name: nextProfile.name, phone: nextProfile.phone }
+          : m
+      )
+    );
+
+    // 2. Connect directly to Firebase Cloud Firestore: users/{uid}
+    const currentFbUser = auth?.currentUser || firebaseUser;
+    if (currentFbUser) {
+      try {
+        const firestoreUpdates: Partial<FirestoreUserData> = {
+          ...(updates.name !== undefined ? { name: updates.name.trim() } : {}),
+          ...(updates.phone !== undefined ? { phone: updates.phone.trim() } : {}),
+          ...(updates.location !== undefined ? { location: updates.location.trim() } : {}),
+          ...(updates.bio !== undefined ? { bio: updates.bio.trim() } : {}),
+          ...(updates.department !== undefined ? { department: updates.department.trim() } : {}),
+          ...(updates.email !== undefined ? { email: updates.email.trim() } : {}),
+          ...(updates.notificationsEnabled !== undefined ? { notificationsEnabled: updates.notificationsEnabled } : {}),
+          ...(updates.avatarUrl !== undefined ? { avatarUrl: updates.avatarUrl } : {}),
+        };
+
+        // Write directly to Cloud Firestore: collection('users').doc(uid)
+        await updateUserDocInFirestore(currentFbUser.uid, firestoreUpdates, currentFbUser.email);
+
+        // Update auth user document cache
+        setAuthUserDoc((prev) => (prev ? { ...prev, ...firestoreUpdates } : (firestoreUpdates as FirestoreUserData)));
+
+        // Update Firebase Auth user displayName / photoURL if changed
+        if (updates.name || updates.avatarUrl !== undefined) {
+          try {
+            await fbUpdateProfile(currentFbUser, {
+              ...(updates.name ? { displayName: updates.name.trim() } : {}),
+              ...(updates.avatarUrl !== undefined ? { photoURL: updates.avatarUrl } : {}),
+            });
+          } catch (authErr) {
+            console.warn('[Firebase Auth] Note: Could not update displayName/photoURL in Auth credentials:', authErr);
+          }
+        }
+
+        // Attempt updating Firebase Auth login email if changed
+        if (updates.email && updates.email.trim().toLowerCase() !== (currentFbUser.email || '').toLowerCase()) {
+          try {
+            await fbUpdateEmail(currentFbUser, updates.email.trim());
+          } catch (authErr: any) {
+            console.warn('[Firebase Auth] Note: Updating Firebase Auth login email requires recent login:', authErr);
+          }
+        }
+
+        addActivity({
+          type: 'Profile Updated',
+          source: `Admin Console (${nextProfile.name})`,
+          cardId: 'SYSTEM',
+          businessName: 'System Administration',
+          location: nextProfile.location || 'Delhi NCR',
+          details: `Admin profile details for ${nextProfile.name} successfully saved to Firebase Firestore`,
+          performer: nextProfile.name,
+        });
+
+        showToast('Profile information saved to Firebase successfully!', 'success');
+        return { success: true, message: 'Profile saved to Firebase successfully!' };
+      } catch (err: any) {
+        console.error('[Firebase] Error updating profile in Firestore:', err);
+        showToast(`Saved locally, but Firestore write failed: ${err?.message || 'Check Firestore rules'}`, 'error');
+        return { success: false, message: err?.message || 'Failed to write to Firebase Firestore.' };
+      }
+    } else {
+      showToast('Profile updated locally (no active Firebase session).', 'info');
+      return { success: true, message: 'Profile updated locally.' };
+    }
   };
 
   const updateSettings = (updates: Partial<PlatformSettings>) => {
@@ -645,6 +749,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         category: finalCategory,
         location: finalLocation,
         lastActivity: 'Just now',
+        thumbnail: getCategoryThumbnail(finalCategory, undefined, finalBusinessName),
       };
 
       await updateCardInFirestore(cleanId, updates);
@@ -726,12 +831,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const changeCardLink = async (cardId: string, newUrl: string) => {
     const cleanId = cardId.trim();
-    const cleanUrl = newUrl.trim();
+    let safeUrl = newUrl.trim();
+    if (!safeUrl.startsWith('http://') && !safeUrl.startsWith('https://')) {
+      safeUrl = `https://${safeUrl}`;
+    }
     try {
-      await updateCardInFirestore(cleanId, { googleReviewUrl: cleanUrl, id: cleanId });
+      const parsed = new URL(safeUrl);
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        showToast('Invalid URL protocol. Only https:// links are supported.', 'error');
+        return;
+      }
+    } catch {
+      showToast('Please enter a valid web URL.', 'error');
+      return;
+    }
+
+    try {
+      await updateCardInFirestore(cleanId, { googleReviewUrl: safeUrl, id: cleanId });
 
       setCards((prev) =>
-        prev.map((c) => (c.id === cleanId ? { ...c, googleReviewUrl: cleanUrl } : c))
+        prev.map((c) => (c.id === cleanId ? { ...c, googleReviewUrl: safeUrl } : c))
       );
 
       const card = cards.find((c) => c.id === cleanId);
@@ -741,7 +860,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cardId: cleanId,
         businessName: card?.businessName,
         location: card?.location,
-        details: `Review link destination updated to ${cleanUrl}`,
+        details: `Review link destination updated to ${safeUrl}`,
       });
 
       showToast(`Destination URL updated for card ${cleanId}`, 'success');
@@ -886,6 +1005,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: newCard.id.trim(),
       qrScans: typeof newCard.qrScans === 'number' ? newCard.qrScans : 0,
       nfcTaps: typeof newCard.nfcTaps === 'number' ? newCard.nfcTaps : 0,
+      thumbnail: getCategoryThumbnail(newCard.category, newCard.thumbnail, newCard.businessName),
     };
 
     try {
@@ -1136,8 +1256,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         try {
-          // Check corresponding Firestore user record in users/{uid}
-          const userDoc = await getUserDocFromFirestore(fbUser.uid);
+          // Check corresponding Firestore user record in users/{uid} (with email fallback)
+          const userDoc = await getUserDocFromFirestore(fbUser.uid, fbUser.email);
           const role = (userDoc?.role || '').trim().toLowerCase();
           const isAllowed = ['admin', 'team', 'manager', 'support', 'field agent'].includes(role);
 
@@ -1146,6 +1266,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setFirebaseUser(fbUser);
             setAuthUserDoc(userDoc);
             setUser(profile);
+            try {
+              localStorage.setItem('modexa_user_profile', JSON.stringify(profile));
+            } catch {}
             setIsAuthenticatedState(true);
 
             // On initial session restoration: if on login, navigate to dashboard; otherwise restore destination
@@ -1234,8 +1357,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
       const fbUser = userCredential.user;
 
-      // Verify Firestore user record: users/{uid}
-      const userDoc = await getUserDocFromFirestore(fbUser.uid);
+      // Verify Firestore user record: users/{uid} (with email fallback)
+      const userDoc = await getUserDocFromFirestore(fbUser.uid, fbUser.email);
       if (!userDoc) {
         console.warn(`[Auth] Account authenticated but no Firestore user record found for uid: ${fbUser.uid}`);
         await signOut(auth);
@@ -1260,6 +1383,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setFirebaseUser(fbUser);
       setAuthUserDoc(userDoc);
       setUser(profile);
+      try {
+        localStorage.setItem('modexa_user_profile', JSON.stringify(profile));
+      } catch {}
       setIsAuthenticatedState(true);
       applyViewState('dashboard', undefined, true);
       return { success: true, message: `Welcome back, ${profile.name}!` };
@@ -1302,6 +1428,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       localStorage.removeItem('modexa_admin_session');
       localStorage.removeItem('modexa_admin_password');
+      localStorage.removeItem('modexa_user_profile');
     } catch {}
 
     if (typeof window !== 'undefined') {

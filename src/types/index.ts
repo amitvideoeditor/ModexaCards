@@ -23,6 +23,7 @@ export type ActivityType =
   | 'Card Disabled'
   | 'Member Joined'
   | 'Role Updated'
+  | 'Profile Updated'
   | 'Link Updated'
   | 'Cards Generated'
   | 'Password Reset'
@@ -82,6 +83,7 @@ export interface UserProfile {
   bio: string;
   department: string;
   notificationsEnabled: boolean;
+  avatarUrl?: string;
 }
 
 export interface PlatformSettings {

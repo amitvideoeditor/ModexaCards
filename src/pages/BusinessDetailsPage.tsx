@@ -15,6 +15,7 @@ import { GoogleIcon } from '../components/GoogleIcon';
 import { ScansChart } from '../components/ScansChart';
 import { MobileHeader } from '../components/MobileHeader';
 import { EditCardSideSection } from '../components/EditCardSideSection';
+import { CategoryThumbnailImage } from '../components/CategoryThumbnailImage';
 
 export const BusinessDetailsPage: React.FC = () => {
   const {
@@ -89,17 +90,12 @@ export const BusinessDetailsPage: React.FC = () => {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <img
-                src={currentCard.thumbnail}
-                alt={currentCard.businessName}
-                style={{
-                  width: '52px',
-                  height: '52px',
-                  borderRadius: '12px',
-                  objectFit: 'cover',
-                  border: '1px solid #E2E8F0',
-                  flexShrink: 0,
-                }}
+              <CategoryThumbnailImage
+                category={currentCard.category}
+                thumbnail={currentCard.thumbnail}
+                businessName={currentCard.businessName}
+                size={52}
+                borderRadius={12}
               />
               <div>
                 <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>
@@ -371,18 +367,13 @@ export const BusinessDetailsPage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
           {/* Left: Thumbnail & Info */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-            <img
-              src={currentCard.thumbnail}
-              alt={currentCard.businessName}
-              style={{
-                width: '120px',
-                height: '84px',
-                borderRadius: '12px',
-                objectFit: 'cover',
-                border: '1px solid #E2E8F0',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                flexShrink: 0,
-              }}
+            <CategoryThumbnailImage
+              category={currentCard.category}
+              thumbnail={currentCard.thumbnail}
+              businessName={currentCard.businessName}
+              width={120}
+              height={84}
+              borderRadius={12}
             />
 
             <div>

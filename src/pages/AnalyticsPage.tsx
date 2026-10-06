@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { sevenDaysChartData, thirtyDaysChartData } from '../data/mockData';
+import { CategoryThumbnailImage } from '../components/CategoryThumbnailImage';
 
 export const AnalyticsPage: React.FC = () => {
   const { cards, stats, navigateTo, showToast, isMobile } = useApp();
@@ -472,10 +473,12 @@ export const AnalyticsPage: React.FC = () => {
                   >
                     <td style={{ padding: '14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <img
-                          src={card.thumbnail}
-                          alt={card.businessName}
-                          style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover' }}
+                        <CategoryThumbnailImage
+                          category={card.category}
+                          thumbnail={card.thumbnail}
+                          businessName={card.businessName}
+                          size={36}
+                          borderRadius={8}
                         />
                         <div>
                           <div style={{ fontWeight: 600, color: '#0F172A' }}>{card.businessName}</div>

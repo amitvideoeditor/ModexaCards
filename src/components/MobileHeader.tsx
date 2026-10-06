@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Bell, MoreVertical, Search, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { InstallAppButton } from './InstallAppButton';
 
 interface MobileHeaderProps {
   title?: string;
@@ -58,6 +59,9 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Install as Native App */}
+            <InstallAppButton variant="icon" />
+
             {/* Mobile Header Search Button */}
             {showSearch && (
               <button
@@ -166,6 +170,9 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {/* Install as Native App */}
+            <InstallAppButton variant="icon" style={{ width: '36px', height: '36px' }} />
+
             {/* Mobile Header Search Button */}
             {showSearch && (
               <button

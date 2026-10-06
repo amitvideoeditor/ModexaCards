@@ -2,65 +2,172 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // =========================================================================
+    // CORE SECURITY & ROLE-BASED ACCESS HELPERS
+    // =========================================================================
+
+    // 1. Basic authentication verification
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    // 2. Fetch the user document data for the currently authenticated caller
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    // 1. Users collection (Admin / Team member authorization profiles)
-    // Authenticated users can read their own authorization doc; only authenticated admins can write
+    // 3. Verify user profile exists in /users/{uid} and is marked active
+    function isActiveUser() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserData().active == true;
+    }
+
+    // 4. Administrator verification:
+    // Requires authenticated, active status, and explicit 'Admin' role
+    function isAdmin() {
+      return isActiveUser() && (
+        getUserData().role == 'Admin' ||
+        getUserData().role == 'admin'
+      );
+    }
+
+    // =========================================================================
+    // 1. USERS COLLECTION (users/{userId})
+    // Authorization profiles storing uid, role, active, and personal details
+    // =========================================================================
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      // READ:
+      // - Authenticated users can always read their own record (needed on initial login session)
+      // - Active team members / admins can read the user directory
+      allow get: if isAuthenticated() && (request.auth.uid == userId || isActiveUser());
+      allow list: if isActiveUser();
+
+      // CREATE:
+      // - ONLY Admin can create new user authorization profiles
+      allow create: if isAdmin();
+
+      // UPDATE:
+      // - Admin can update any user (change roles, toggle active status, edit info)
+      // - Active non-admin users can ONLY edit their own personal profile fields:
+      //   STRICTLY FORBIDDEN from altering 'role' or 'active' (cannot promote themselves or reactivate)
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        request.auth.uid == userId &&
+        resource.data.active == true &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'active']) &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.active == resource.data.active
+      );
+
+      // DELETE:
+      // - ONLY Admin can delete user accounts
+      allow delete: if isAdmin();
     }
 
-    // 2. Cards collection
-    // - Public 'get' allowed for unauthenticated customer QR / NFC redirection (/r/:cardId)
-    // - Listing / querying the full cards collection strictly requires authentication
-    // - Tap telemetry updates (nfcTaps, qrScans, lastActivity) permitted for public redirect flow
-    // - Card creation, deletion, and full editing strictly require authentication
+    // =========================================================================
+    // 2. CARDS COLLECTION (cards/{cardId})
+    // Inventory of Google Review Cards, NFC chips, and Acrylic Stands
+    // =========================================================================
     match /cards/{cardId} {
+      // READ (GET):
+      // - Public / Customer can read individual card data for the permanent redirect route:
+      //   https://modexacards.web.app/r/:cardId
       allow get: if true;
-      allow list: if isAuthenticated();
-      allow create, delete: if isAuthenticated();
-      allow update: if isAuthenticated() || 
-        (resource != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nfcTaps', 'qrScans', 'lastActivity']));
+
+      // READ (LIST / QUERY):
+      // - Only active authenticated dashboard users (Admin & Team Members) can list cards
+      // - Public customers CANNOT list or scrape card inventory
+      allow list: if isActiveUser();
+
+      // CREATE (GENERATE):
+      // - ONLY Admin can generate / create new cards or batch cards
+      // - Team members are strictly forbidden from generating cards
+      allow create: if isAdmin();
+
+      // UPDATE (EDIT):
+      // - Admin can edit any card
+      // - Active team members can update existing cards for allowed dashboard operations (assignments, status)
+      // - Public / Customers CANNOT modify any card data
+      allow update: if isAdmin() || (
+        isActiveUser() &&
+        resource != null
+      );
+
+      // DELETE:
+      // - ONLY Admin can delete cards from inventory
+      // - Team members CANNOT delete cards
+      allow delete: if isAdmin();
     }
 
-    // 3. Platform stats & aggregated telemetry
-    // - 'get' and tap counter increments allowed for customer tap counter aggregation
-    // - Full write and list management require authentication
-    match /stats/{statId} {
-      allow get: if true;
-      allow list: if isAuthenticated();
-      allow create, delete: if isAuthenticated();
-      allow update: if isAuthenticated() || 
-        (resource != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalTaps', 'todayScans']));
-    }
-
-    // 4. Real-time activity logs: internal dashboard access only
-    match /activities/{activityId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // 5. Team directory: internal dashboard access only
-    match /teamMembers/{memberId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // 6. Platform routing and brand configuration: internal dashboard access only
+    // =========================================================================
+    // 3. PLATFORM SETTINGS (settings/{settingId})
+    // Gateway domain, Google Place API keys, platform branding
+    // =========================================================================
     match /settings/{settingId} {
-      allow read, write: if isAuthenticated();
+      // Active dashboard users can read settings
+      allow read: if isActiveUser();
+
+      // ONLY Admin can change or write platform settings
+      // Team members are strictly forbidden from modifying settings
+      allow write: if isAdmin();
     }
 
-    // 7. Default deny for all other collections
+    // =========================================================================
+    // 4. TEAM DIRECTORY (teamMembers/{memberId})
+    // Staff member roster, assigned regions, and contact info
+    // =========================================================================
+    match /teamMembers/{memberId} {
+      // Active dashboard users can read team directory
+      allow read: if isActiveUser();
+
+      // ONLY Admin can add, update, or remove team members
+      // Team members cannot manage staff roster or permissions
+      allow write: if isAdmin();
+    }
+
+    // =========================================================================
+    // 5. PLATFORM STATS (stats/{statId})
+    // Aggregated telemetry counters and tap metrics
+    // =========================================================================
+    match /stats/{statId} {
+      // Active dashboard users can read statistics
+      allow read: if isActiveUser();
+
+      // Only active dashboard users and Admin can write / update stats
+      // Public cannot modify stats
+      allow write: if isActiveUser();
+    }
+
+    // =========================================================================
+    // 6. REAL-TIME ACTIVITY LOGS (activities/{activityId})
+    // Internal audit trail of card activations, assignments, and updates
+    // =========================================================================
+    match /activities/{activityId} {
+      // Active dashboard users can view recent platform activity
+      allow read: if isActiveUser();
+
+      // Active dashboard users can append new activity records
+      allow create: if isActiveUser();
+
+      // ONLY Admin can modify or purge historical activity logs
+      allow update, delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 7. SYSTEM DIAGNOSTICS (system/{docId})
+    // Internal connection heartbeat testing
+    // =========================================================================
+    match /system/{docId} {
+      allow read, write: if isActiveUser();
+    }
+
+    // =========================================================================
+    // 8. DEFAULT DENY
+    // All other collections and paths are strictly blocked
+    // =========================================================================
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
-

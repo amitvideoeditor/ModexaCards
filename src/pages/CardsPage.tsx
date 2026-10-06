@@ -22,6 +22,7 @@ import { useApp } from '../context/AppContext';
 import { CardStatusBadge } from '../components/CardStatusBadge';
 import { MobileHeader } from '../components/MobileHeader';
 import { EditCardSideSection } from '../components/EditCardSideSection';
+import { CategoryThumbnailImage } from '../components/CategoryThumbnailImage';
 
 export const CardsPage: React.FC = () => {
   const {
@@ -487,25 +488,13 @@ export const CardsPage: React.FC = () => {
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div
-                          style={{
-                            width: '42px',
-                            height: '42px',
-                            borderRadius: '8px',
-                            backgroundColor: '#EFF6FF',
-                            color: '#0B63E5',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 700,
-                            fontSize: '11px',
-                            fontFamily: 'monospace',
-                            border: '1px solid #BFDBFE',
-                            flexShrink: 0,
-                          }}
-                        >
-                          {card.id.replace('CRD-', '')}
-                        </div>
+                        <CategoryThumbnailImage
+                          category={card.category}
+                          thumbnail={card.thumbnail}
+                          businessName={card.businessName}
+                          size={42}
+                          borderRadius={10}
+                        />
                         <div>
                           <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
                             {card.businessName || 'Unassigned Stock'}
@@ -1275,23 +1264,13 @@ export const CardsPage: React.FC = () => {
                         {/* 2. Business */}
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div
-                              style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '8px',
-                                backgroundColor: isUnassigned ? '#FEF3C7' : '#EFF6FF',
-                                color: isUnassigned ? '#B45309' : '#0B63E5',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontWeight: 700,
-                                fontSize: '12px',
-                                flexShrink: 0,
-                              }}
-                            >
-                              {isUnassigned ? 'U' : (card.businessName ? card.businessName.charAt(0) : 'U')}
-                            </div>
+                            <CategoryThumbnailImage
+                              category={card.category}
+                              thumbnail={card.thumbnail}
+                              businessName={card.businessName}
+                              size={34}
+                              borderRadius={8}
+                            />
                             <div>
                               <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '13.5px' }}>
                                 {card.businessName || 'Unassigned Stock'}

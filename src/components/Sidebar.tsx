@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ReviewTapLogo } from './ReviewTapLogo';
+import { InstallAppButton } from './InstallAppButton';
 import type { DesktopNav, ViewScreen } from '../types';
 
 export const Sidebar: React.FC = () => {
@@ -122,6 +123,9 @@ export const Sidebar: React.FC = () => {
 
       {/* Bottom Section: User Profile & System Status */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid #F1F5F9', paddingTop: '16px' }}>
+        {/* Install as Progressive Web App (PWA) */}
+        <InstallAppButton variant="sidebar" />
+
         {/* Clickable Profile Card in Sidebar Bottom */}
         <button
           type="button"
@@ -159,9 +163,18 @@ export const Sidebar: React.FC = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow: '0 2px 5px rgba(11, 99, 229, 0.2)',
+                overflow: 'hidden',
               }}
             >
-              {user.name.charAt(0)}
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={user.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                user.name.charAt(0)
+              )}
             </div>
             <span
               style={{

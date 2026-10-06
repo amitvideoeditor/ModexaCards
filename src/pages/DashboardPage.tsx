@@ -5,6 +5,7 @@ import { StatCard } from '../components/StatCard';
 import { CardStatusBadge } from '../components/CardStatusBadge';
 import { ScansChart } from '../components/ScansChart';
 import { MobileHeader } from '../components/MobileHeader';
+import { CategoryThumbnailImage } from '../components/CategoryThumbnailImage';
 
 export const DashboardPage: React.FC = () => {
   const {
@@ -34,9 +35,10 @@ export const DashboardPage: React.FC = () => {
       id: c.businessId || c.id,
       cardId: c.id,
       name: c.businessName,
+      category: c.category,
       status: c.status,
       lastActivity: c.lastActivity,
-      thumbnail: c.thumbnail || 'https://images.unsplash.com/photo-1556742049-0a67c5574f73?w=150&auto=format&fit=crop&q=80',
+      thumbnail: c.thumbnail,
     }));
 
   // ========================================================
@@ -117,17 +119,12 @@ export const DashboardPage: React.FC = () => {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <img
-                        src={item.thumbnail}
-                        alt={item.name}
-                        style={{
-                          width: '44px',
-                          height: '44px',
-                          borderRadius: '10px',
-                          objectFit: 'cover',
-                          border: '1px solid #E2E8F0',
-                          flexShrink: 0,
-                        }}
+                      <CategoryThumbnailImage
+                        category={item.category}
+                        thumbnail={item.thumbnail}
+                        businessName={item.name}
+                        size={44}
+                        borderRadius={10}
                       />
                       <div>
                         <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
@@ -255,17 +252,12 @@ export const DashboardPage: React.FC = () => {
                   >
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <img
-                          src={item.thumbnail}
-                          alt={item.name}
-                          style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '8px',
-                            objectFit: 'cover',
-                            border: '1px solid #E2E8F0',
-                            flexShrink: 0,
-                          }}
+                        <CategoryThumbnailImage
+                          category={item.category}
+                          thumbnail={item.thumbnail}
+                          businessName={item.name}
+                          size={36}
+                          borderRadius={8}
                         />
                         <span style={{ fontWeight: 700, color: '#0F172A', fontSize: '13px' }}>
                           {item.name}

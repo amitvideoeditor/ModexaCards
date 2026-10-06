@@ -17,8 +17,9 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { CardStatusBadge } from './CardStatusBadge';
-import cardThumbImg from '../assets/review-card-stand.png';
 import type { CardStatus } from '../types';
+import { CategoryThumbnailImage } from './CategoryThumbnailImage';
+import { BUSINESS_CATEGORIES, getCategoryThumbnail } from '../data/categoryThumbnails';
 
 export const ActivateCardDrawer: React.FC = () => {
   const {
@@ -119,13 +120,28 @@ export const ActivateCardDrawer: React.FC = () => {
       return;
     }
 
+    let safeReviewUrl = finalReviewUrl;
+    if (!safeReviewUrl.startsWith('http://') && !safeReviewUrl.startsWith('https://')) {
+      safeReviewUrl = `https://${safeReviewUrl}`;
+    }
+    try {
+      const parsed = new URL(safeReviewUrl);
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        showToast('Invalid URL protocol. Only https:// links are supported.', 'error');
+        return;
+      }
+    } catch {
+      showToast('Please enter a valid web URL.', 'error');
+      return;
+    }
+
     setIsSaving(true);
     try {
       if (isUnassigned) {
         await activateCard({
           cardId: currentCard.id,
           businessName: finalBusinessName,
-          reviewUrl: finalReviewUrl,
+          reviewUrl: safeReviewUrl,
           ownerName: owner.trim() || user.name,
           phone,
           category,
@@ -135,11 +151,12 @@ export const ActivateCardDrawer: React.FC = () => {
         await updateCard(currentCard.id, {
           businessName: finalBusinessName,
           category,
-          googleReviewUrl: finalReviewUrl,
+          googleReviewUrl: safeReviewUrl,
           owner: owner.trim() || '—',
           phone,
           location,
           status,
+          thumbnail: getCategoryThumbnail(category, currentCard.thumbnail, finalBusinessName),
         });
       }
       closeActivateModal();
@@ -236,11 +253,13 @@ export const ActivateCardDrawer: React.FC = () => {
                 flexShrink: 0,
               }}
             >
-              <img
-                src={cardThumbImg}
-                alt="Review Card"
-                style={{ width: '40px', height: '40px', objectFit: 'contain' }}
-              />
+            <CategoryThumbnailImage
+              category={category}
+              thumbnail={currentCard.thumbnail}
+              businessName={businessName || currentCard.businessName}
+              size={48}
+              borderRadius={10}
+            />
             </div>
 
             <div style={{ flex: 1 }}>
@@ -336,13 +355,11 @@ export const ActivateCardDrawer: React.FC = () => {
                   cursor: 'pointer',
                 }}
               >
-                <option value="Cafe & Restaurant">Cafe & Restaurant</option>
-                <option value="Dental & Healthcare">Dental & Healthcare</option>
-                <option value="Retail & Fashion">Retail & Fashion</option>
-                <option value="Salon & Spa">Salon & Spa</option>
-                <option value="Automotive & Garage">Automotive & Garage</option>
-                <option value="Legal & Finance">Legal & Finance</option>
-                <option value="Hospitality & Hotels">Hospitality & Hotels</option>
+                {BUSINESS_CATEGORIES.map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -652,9 +669,32 @@ export const ActivateCardDrawer: React.FC = () => {
         </div>
         {/* Render same form on desktop drawer */}
         <form onSubmit={handleSubmit} style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+            <CategoryThumbnailImage
+              category={category}
+              thumbnail={currentCard.thumbnail}
+              businessName={businessName || currentCard.businessName}
+              size={44}
+              borderRadius={8}
+            />
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>{currentCard.id}</div>
+              <div style={{ fontSize: '11.5px', color: '#64748B' }}>{category}</div>
+            </div>
+          </div>
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#0F172A', marginBottom: '6px' }}>Business Name *</label>
             <input type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} required style={{ width: '100%', height: '40px', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '0 12px', boxSizing: 'border-box' }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#0F172A', marginBottom: '6px' }}>Business Category</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: '100%', height: '40px', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '0 12px', boxSizing: 'border-box', backgroundColor: '#FFFFFF' }}>
+              {BUSINESS_CATEGORIES.map((cat) => (
+                <option key={cat.id} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#0F172A', marginBottom: '6px' }}>Google Review Link *</label>

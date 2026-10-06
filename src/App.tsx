@@ -86,7 +86,7 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // 1. AUTH LOADING SCREEN (Prevents flash of protected content before Firebase resolves)
+  // 1. AUTH LOADING (Clean minimal smooth spinner like Google & Instagram, no intrusive text)
   if (authLoading) {
     return (
       <div
@@ -94,32 +94,21 @@ const AppContent: React.FC = () => {
           minHeight: '100vh',
           width: '100%',
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: '#F8FAFC',
-          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
         }}
       >
-        <div style={{ textAlign: 'center', padding: '24px' }}>
-          <div
-            style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '50%',
-              border: '3px solid #E2E8F0',
-              borderTopColor: '#0B63E5',
-              animation: 'spin 0.8s linear infinite',
-              margin: '0 auto 16px',
-            }}
-          />
-          <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A', margin: '0 0 6px 0' }}>
-            Verifying Security Credentials...
-          </h2>
-          <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>
-            Checking Firebase Authentication session & permissions
-          </p>
-        </div>
+        <div
+          style={{
+            width: '38px',
+            height: '38px',
+            borderRadius: '50%',
+            border: '3px solid rgba(11, 99, 229, 0.15)',
+            borderTopColor: '#0B63E5',
+            animation: 'spin 0.7s linear infinite',
+          }}
+        />
       </div>
     );
   }

@@ -9,6 +9,17 @@ interface CustomerTapRedirectPageProps {
   onOpenAdmin?: () => void;
 }
 
+export function isSafeRedirectUrl(url?: string | null): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 export const CustomerTapRedirectPage: React.FC<CustomerTapRedirectPageProps> = ({
   cardId,
   cards,
@@ -42,15 +53,16 @@ export const CustomerTapRedirectPage: React.FC<CustomerTapRedirectPageProps> = (
       setCard(foundCard);
       setLoading(false);
 
-      if (foundCard && foundCard.status === 'Active' && foundCard.googleReviewUrl) {
+      if (foundCard && foundCard.status === 'Active' && isSafeRedirectUrl(foundCard.googleReviewUrl)) {
         // Record tap event in Firestore & analytics
         recordCardTapInFirestore(foundCard.id, 'nfc');
 
         // Automatic redirect after small delay for smooth visual feedback
         setRedirecting(true);
         const timer = setTimeout(() => {
-          if (!isCancelled && foundCard?.googleReviewUrl) {
-            window.location.replace(foundCard.googleReviewUrl);
+          const dest = foundCard?.googleReviewUrl;
+          if (!isCancelled && dest && isSafeRedirectUrl(dest)) {
+            window.location.replace(dest);
           }
         }, 1200);
 
@@ -66,7 +78,7 @@ export const CustomerTapRedirectPage: React.FC<CustomerTapRedirectPageProps> = (
   }, [cardId, cards]);
 
   const handleManualRedirect = () => {
-    if (card?.googleReviewUrl) {
+    if (card?.googleReviewUrl && isSafeRedirectUrl(card.googleReviewUrl)) {
       recordCardTapInFirestore(card.id, 'nfc');
       window.location.href = card.googleReviewUrl;
     }
@@ -168,8 +180,8 @@ export const CustomerTapRedirectPage: React.FC<CustomerTapRedirectPageProps> = (
           </div>
         </div>
 
-        {/* State 1: Active Card Redirecting */}
-        {card && card.status === 'Active' && card.googleReviewUrl && (
+        {/* State 1A: Active Card Redirecting */}
+        {card && card.status === 'Active' && isSafeRedirectUrl(card.googleReviewUrl) && (
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 6px 0', color: '#FFFFFF' }}>
               {card.businessName}
@@ -206,6 +218,37 @@ export const CustomerTapRedirectPage: React.FC<CustomerTapRedirectPageProps> = (
             <div style={{ fontSize: '11px', color: '#64748B' }}>
               Hardware ID: <strong style={{ color: '#94A3B8', fontFamily: 'monospace' }}>{card.id}</strong>
             </div>
+          </div>
+        )}
+
+        {/* State 1B: Active Card with Invalid / Unsafe URL Scheme */}
+        {card && card.status === 'Active' && !isSafeRedirectUrl(card.googleReviewUrl) && (
+          <div>
+            <h2 style={{ fontSize: '19px', fontWeight: 700, margin: '0 0 8px 0', color: '#EF4444' }}>
+              Security Alert: Invalid Review Link
+            </h2>
+            <p style={{ fontSize: '13px', color: '#94A3B8', lineHeight: 1.5, margin: '0 0 20px 0' }}>
+              The destination link configured for card <strong style={{ color: '#FFFFFF', fontFamily: 'monospace' }}>{card.id}</strong> uses an unverified or unsafe URL protocol. Automatic redirection was blocked to protect your device.
+            </p>
+            {onOpenAdmin && (
+              <button
+                type="button"
+                onClick={onOpenAdmin}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  backgroundColor: '#334155',
+                  color: '#FFFFFF',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  fontSize: '13.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Fix in Admin Portal
+              </button>
+            )}
           </div>
         )}
 

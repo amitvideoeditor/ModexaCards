@@ -17,8 +17,9 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { CardStatusBadge } from './CardStatusBadge';
-import cardThumbImg from '../assets/review-card-stand.png';
 import type { CardStatus } from '../types';
+import { CategoryThumbnailImage } from './CategoryThumbnailImage';
+import { BUSINESS_CATEGORIES, getCategoryThumbnail } from '../data/categoryThumbnails';
 
 interface EditCardSideSectionProps {
   cardId: string;
@@ -128,13 +129,28 @@ export const EditCardSideSection: React.FC<EditCardSideSectionProps> = ({
     const finalBusinessName = businessName.trim() || (owner.trim() ? `${owner.trim()}'s Business` : 'New Business');
     const finalReviewUrl = googleReviewUrl.trim() || `https://modexacards.web.app/r/${encodeURIComponent(currentCard.id)}`;
 
+    let safeReviewUrl = finalReviewUrl;
+    if (!safeReviewUrl.startsWith('http://') && !safeReviewUrl.startsWith('https://')) {
+      safeReviewUrl = `https://${safeReviewUrl}`;
+    }
+    try {
+      const parsed = new URL(safeReviewUrl);
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        showToast('Invalid URL protocol. Only https:// links are supported.', 'error');
+        return;
+      }
+    } catch {
+      showToast('Please enter a valid web URL.', 'error');
+      return;
+    }
+
     setIsSaving(true);
     try {
       if (isUnassigned) {
         await activateCard({
           cardId: currentCard.id,
           businessName: finalBusinessName,
-          reviewUrl: finalReviewUrl,
+          reviewUrl: safeReviewUrl,
           ownerName: owner.trim() || user.name,
           phone,
           category,
@@ -144,11 +160,12 @@ export const EditCardSideSection: React.FC<EditCardSideSectionProps> = ({
         await updateCard(currentCard.id, {
           businessName: finalBusinessName,
           category,
-          googleReviewUrl: finalReviewUrl,
+          googleReviewUrl: safeReviewUrl,
           owner: owner.trim() || '—',
           phone,
           location,
           status,
+          thumbnail: getCategoryThumbnail(category, currentCard.thumbnail, finalBusinessName),
         });
       }
       onClose();
@@ -254,10 +271,12 @@ export const EditCardSideSection: React.FC<EditCardSideSectionProps> = ({
               flexShrink: 0,
             }}
           >
-            <img
-              src={currentCard.thumbnail || cardThumbImg}
-              alt="Review Card"
-              style={{ width: '38px', height: '38px', objectFit: 'contain' }}
+            <CategoryThumbnailImage
+              category={category}
+              thumbnail={currentCard.thumbnail}
+              businessName={businessName || currentCard.businessName}
+              size={46}
+              borderRadius={10}
             />
           </div>
 
@@ -355,13 +374,11 @@ export const EditCardSideSection: React.FC<EditCardSideSectionProps> = ({
                   boxSizing: 'border-box',
                 }}
               >
-                <option value="Cafe & Restaurant">Cafe & Restaurant</option>
-                <option value="Dental & Healthcare">Dental & Healthcare</option>
-                <option value="Retail & Fashion">Retail & Fashion</option>
-                <option value="Salon & Spa">Salon & Spa</option>
-                <option value="Automotive & Garage">Automotive & Garage</option>
-                <option value="Legal & Finance">Legal & Finance</option>
-                <option value="Hospitality & Hotels">Hospitality & Hotels</option>
+                {BUSINESS_CATEGORIES.map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   Mail,
@@ -6,7 +6,6 @@ import {
   CreditCard,
   Store,
   LogOut,
-  ChevronRight,
   Settings,
   Phone,
   MapPin,
@@ -16,23 +15,47 @@ import {
   Smartphone,
   Pencil,
   X,
-  Building2,
+  Camera,
+  CheckCircle2,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { ImageCropModal } from '../components/ImageCropModal';
 
 export const ProfilePage: React.FC = () => {
   const { user, updateUserProfile, stats, logout, updatePassword, navigateTo, goBack, showToast, isMobile } = useApp();
 
-  // Mobile edit toggle state
+  // Desktop & Mobile edit toggle states
+  const [isDesktopEditing, setIsDesktopEditing] = useState(false);
   const [isMobileEditing, setIsMobileEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
-  // Form states
-  const [name, setName] = useState(user.name);
-  const [email, setEmail] = useState(user.email);
-  const [phone, setPhone] = useState(user.phone || '+91 98111 22334');
-  const [location, setLocation] = useState(user.location || 'New Delhi, India');
-  const [bio, setBio] = useState(user.bio || 'Lead Administrator managing enterprise Modexa TapCard NFC deployments.');
-  const [department, setDepartment] = useState(user.department || 'Operations & Field Success');
+  // Instagram-style Image Crop States
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [selectedRawImage, setSelectedRawImage] = useState<string>('');
+
+  // Hidden photo upload input ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Form states initialized directly from user
+  const [name, setName] = useState(user.name || '');
+  const [email, setEmail] = useState(user.email || '');
+  const [phone, setPhone] = useState(user.phone || '');
+  const [location, setLocation] = useState(user.location || '');
+  const [bio, setBio] = useState(user.bio || '');
+  const [department, setDepartment] = useState(user.department || '');
+
+  // Keep form in sync when user profile is loaded from Firebase on page refresh or after update
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setEmail(user.email || '');
+      setPhone(user.phone || '');
+      setLocation(user.location || '');
+      setBio(user.bio || '');
+      setDepartment(user.department || '');
+    }
+  }, [user]);
 
   // Password fields
   const [currentPassword, setCurrentPassword] = useState('');
@@ -43,18 +66,94 @@ export const ProfilePage: React.FC = () => {
     logout();
   };
 
-  const handleSaveProfile = (e?: React.FormEvent) => {
+  /**
+   * Handle profile photo selection and open Instagram-style Crop & Adjust screen
+   */
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select a valid image file (JPG, PNG, WebP).', 'error');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Image size exceeds 10MB limit. Please choose a smaller photo.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const rawDataUrl = uploadEvent.target?.result as string;
+      if (rawDataUrl) {
+        setSelectedRawImage(rawDataUrl);
+        setCropModalOpen(true);
+      }
+    };
+    reader.readAsDataURL(file);
+    // Reset input so same file can be re-selected if desired
+    e.target.value = '';
+  };
+
+  /**
+   * Save final adjusted and cropped profile image to Firebase and local profile
+   */
+  const handleCropComplete = async (croppedDataUrl: string) => {
+    setIsUploadingPhoto(true);
+    try {
+      const res = await updateUserProfile({ avatarUrl: croppedDataUrl });
+      if (res.success) {
+        showToast('Profile photo updated successfully!', 'success');
+      } else {
+        showToast(res.message, 'error');
+      }
+    } catch {
+      showToast('Failed to update profile photo.', 'error');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  /**
+   * Remove custom avatar photo and revert to initial letter avatar
+   */
+  const handleRemovePhoto = async () => {
+    setIsUploadingPhoto(true);
+    try {
+      const res = await updateUserProfile({ avatarUrl: '' });
+      if (res.success) {
+        showToast('Profile photo removed.', 'info');
+      }
+    } catch {
+      showToast('Failed to remove photo.', 'error');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handleSaveProfile = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    updateUserProfile({
-      name,
-      email,
-      phone,
-      location,
-      bio,
-      department,
-    });
-    setIsMobileEditing(false);
-    showToast('Profile updated successfully.', 'success');
+    setIsSaving(true);
+    try {
+      const res = await updateUserProfile({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        location: location.trim(),
+        bio: bio.trim(),
+        department: department.trim(),
+      });
+      setIsMobileEditing(false);
+      setIsDesktopEditing(false);
+      if (res && !res.success) {
+        showToast(res.message, 'error');
+      }
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to save profile changes to Firebase.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
@@ -84,6 +183,15 @@ export const ProfilePage: React.FC = () => {
   if (!isMobile) {
     return (
       <div style={{ padding: '32px', backgroundColor: '#F8FAFC', minHeight: '100%' }}>
+        {/* Hidden File Picker Input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          style={{ display: 'none' }}
+          onChange={handlePhotoSelect}
+        />
+
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
           <div>
@@ -103,6 +211,23 @@ export const ProfilePage: React.FC = () => {
                 }}
               >
                 {user.role}
+              </span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  backgroundColor: '#ECFDF5',
+                  color: '#059669',
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  border: '1px solid #A7F3D0',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
+                Firebase Cloud Synced
               </span>
             </div>
             <p style={{ fontSize: '13px', color: '#64748B', marginTop: '4px', marginBottom: 0 }}>
@@ -137,38 +262,121 @@ export const ProfilePage: React.FC = () => {
         <div style={{ display: 'grid', gridTemplateColumns: '4fr 8fr', gap: '24px', alignItems: 'start' }}>
           {/* Left Column: Identity & Metrics Card */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* User Profile Card - Circular Photo */}
+            {/* User Profile Card with Photo Upload */}
             <div className="surface-card" style={{ padding: '24px', textAlign: 'center' }}>
-              <div
-                style={{
-                  width: '84px',
-                  height: '84px',
-                  borderRadius: '50%',
-                  backgroundColor: '#0B63E5',
-                  color: '#FFFFFF',
-                  fontSize: '34px',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px',
-                  boxShadow: '0 8px 24px rgba(11, 99, 229, 0.28)',
-                  border: '3px solid #FFFFFF',
-                }}
-              >
-                {user.name.charAt(0)}
+              {/* Circular Avatar with Camera Button */}
+              <div style={{ position: 'relative', width: '92px', height: '92px', margin: '0 auto 12px' }}>
+                <div
+                  style={{
+                    width: '92px',
+                    height: '92px',
+                    borderRadius: '50%',
+                    backgroundColor: '#0B63E5',
+                    color: '#FFFFFF',
+                    fontSize: '34px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 8px 24px rgba(11, 99, 229, 0.28)',
+                    border: '3px solid #FFFFFF',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    user.name.charAt(0)
+                  )}
+                </div>
+
+                {/* Upload Photo Button Badge */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingPhoto}
+                  title="Upload profile photo"
+                  aria-label="Upload profile photo"
+                  style={{
+                    position: 'absolute',
+                    bottom: '2px',
+                    right: '2px',
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '50%',
+                    backgroundColor: '#0B63E5',
+                    color: '#FFFFFF',
+                    border: '2.5px solid #FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#094ec2')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0B63E5')}
+                >
+                  <Camera size={14} />
+                </button>
+              </div>
+
+              {/* Photo Actions: Change Photo / Remove */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '14px' }}>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingPhoto}
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#0B63E5',
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    padding: '2px 4px',
+                  }}
+                >
+                  {isUploadingPhoto ? 'Uploading...' : user.avatarUrl ? 'Change Photo' : 'Upload Photo'}
+                </button>
+                {user.avatarUrl && (
+                  <>
+                    <span style={{ color: '#CBD5E1', fontSize: '11px' }}>•</span>
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      disabled={isUploadingPhoto}
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        color: '#DC2626',
+                        border: 'none',
+                        background: 'none',
+                        cursor: 'pointer',
+                        padding: '2px 4px',
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </>
+                )}
               </div>
 
               <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
                 {user.name}
               </h2>
               <div style={{ fontSize: '13px', color: '#0B63E5', fontWeight: 600, marginTop: '2px' }}>
-                {user.department}
+                {user.department || 'Executive Administration'}
               </div>
               <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
                 {user.email}
               </div>
 
+              {/* Quick Details Box */}
               <div
                 style={{
                   marginTop: '16px',
@@ -186,20 +394,55 @@ export const ProfilePage: React.FC = () => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Phone size={13} style={{ color: '#94A3B8' }} />
-                  <span>{user.phone}</span>
+                  <span>{user.phone || 'No contact phone set'}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <MapPin size={13} style={{ color: '#94A3B8' }} />
-                  <span>{user.location}</span>
+                  <span>{user.location || 'New Delhi, India'}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Shield size={13} style={{ color: '#16A34A' }} />
                   <span style={{ color: '#16A34A', fontWeight: 600 }}>2FA Protected • Level 3 Access</span>
                 </div>
               </div>
+
+              {/* Edit Profile Button in Left Card */}
+              <button
+                type="button"
+                onClick={() => setIsDesktopEditing((prev) => !prev)}
+                style={{
+                  width: '100%',
+                  marginTop: '16px',
+                  padding: '9px 16px',
+                  borderRadius: '10px',
+                  border: isDesktopEditing ? '1.5px solid #0B63E5' : '1px solid #CBD5E1',
+                  backgroundColor: isDesktopEditing ? '#EFF6FF' : '#FFFFFF',
+                  color: '#0B63E5',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {isDesktopEditing ? (
+                  <>
+                    <X size={15} />
+                    <span>Close Edit Mode</span>
+                  </>
+                ) : (
+                  <>
+                    <Pencil size={15} />
+                    <span>Edit Profile Details</span>
+                  </>
+                )}
+              </button>
             </div>
 
-            {/* Scope Stats - Strictly NO taps and NO scans as requested */}
+            {/* Scope Stats */}
             <div className="surface-card" style={{ padding: '20px' }}>
               <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', marginBottom: '14px' }}>
                 Operational Scope
@@ -242,155 +485,330 @@ export const ProfilePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: Editable Forms */}
+          {/* Right Column: Editable Profile Section OR Clean View-Only Details (Toggled by Pencil) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Profile Information Form */}
-            <div className="surface-card" style={{ padding: '28px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-                <div>
-                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
-                    Personal Information
-                  </h3>
-                  <p style={{ fontSize: '12px', color: '#64748B', marginTop: '2px', marginBottom: 0 }}>
-                    Update your public administrator details and field contact numbers.
-                  </p>
-                </div>
-              </div>
-
-              <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
+            {isDesktopEditing ? (
+              /* DESKTOP EDIT FORM (Only shown when Pencil button is clicked) */
+              <div className="surface-card" style={{ padding: '28px', border: '1.5px solid #BFDBFE' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid #F1F5F9' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div
                       style={{
-                        width: '100%',
-                        padding: '9px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid #CBD5E1',
-                        fontSize: '13px',
-                        color: '#0F172A',
-                        outline: 'none',
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '10px',
+                        backgroundColor: '#EFF6FF',
+                        color: '#0B63E5',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
-                    />
+                    >
+                      <Pencil size={18} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+                        Edit Personal Information
+                      </h3>
+                      <p style={{ fontSize: '12px', color: '#64748B', margin: '2px 0 0' }}>
+                        Modify your administrator details and sync directly to Firebase Cloud.
+                      </p>
+                    </div>
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '9px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid #CBD5E1',
-                        fontSize: '13px',
-                        color: '#0F172A',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                      Contact Phone
-                    </label>
-                    <input
-                      type="text"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '9px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid #CBD5E1',
-                        fontSize: '13px',
-                        color: '#0F172A',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                      Assigned Territory / Location
-                    </label>
-                    <input
-                      type="text"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '9px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid #CBD5E1',
-                        fontSize: '13px',
-                        color: '#0F172A',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                    Department / Division
-                  </label>
-                  <input
-                    type="text"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
+                  <button
+                    type="button"
+                    onClick={() => setIsDesktopEditing(false)}
                     style={{
-                      width: '100%',
-                      padding: '9px 12px',
+                      padding: '6px 12px',
                       borderRadius: '8px',
-                      border: '1px solid #CBD5E1',
-                      fontSize: '13px',
-                      color: '#0F172A',
-                      outline: 'none',
+                      border: '1px solid #E2E8F0',
+                      backgroundColor: '#FFFFFF',
+                      color: '#64748B',
+                      fontSize: '12.5px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
                     }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                    Administrator Bio
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '9px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid #CBD5E1',
-                      fontSize: '13px',
-                      color: '#0F172A',
-                      outline: 'none',
-                      resize: 'none',
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
-                  <button type="submit" className="btn-primary" style={{ padding: '9px 20px', fontSize: '13px' }}>
-                    <Save size={15} />
-                    <span>Save Profile Changes</span>
+                  >
+                    <X size={14} />
+                    <span>Cancel</span>
                   </button>
                 </div>
-              </form>
-            </div>
+
+                <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g. Amit Maurya"
+                        style={{
+                          width: '100%',
+                          padding: '9px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #CBD5E1',
+                          fontSize: '13px',
+                          color: '#0F172A',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="e.g. admin@modexacards.com"
+                        style={{
+                          width: '100%',
+                          padding: '9px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #CBD5E1',
+                          fontSize: '13px',
+                          color: '#0F172A',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                        Contact Phone
+                      </label>
+                      <input
+                        type="text"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+91 98111 22334"
+                        style={{
+                          width: '100%',
+                          padding: '9px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #CBD5E1',
+                          fontSize: '13px',
+                          color: '#0F172A',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                        Assigned Territory / Location
+                      </label>
+                      <input
+                        type="text"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        placeholder="e.g. Delhi NCR & Gurugram"
+                        style={{
+                          width: '100%',
+                          padding: '9px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #CBD5E1',
+                          fontSize: '13px',
+                          color: '#0F172A',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                      Department / Division
+                    </label>
+                    <input
+                      type="text"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      placeholder="e.g. Executive Administration"
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #CBD5E1',
+                        fontSize: '13px',
+                        color: '#0F172A',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                      Administrator Bio
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      placeholder="Describe your role or administrative responsibilities..."
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #CBD5E1',
+                        fontSize: '13px',
+                        color: '#0F172A',
+                        outline: 'none',
+                        resize: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsDesktopEditing(false)}
+                      style={{
+                        padding: '9px 18px',
+                        borderRadius: '8px',
+                        border: '1px solid #CBD5E1',
+                        backgroundColor: '#FFFFFF',
+                        color: '#64748B',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={isSaving}
+                      style={{
+                        padding: '9px 22px',
+                        fontSize: '13px',
+                        opacity: isSaving ? 0.7 : 1,
+                        cursor: isSaving ? 'not-allowed' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <Save size={15} />
+                      <span>{isSaving ? 'Saving to Firebase...' : 'Save Profile Changes'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              /* CLEAN DESKTOP OVERVIEW VIEW (Shown by default) */
+              <div className="surface-card" style={{ padding: '28px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+                      Personal Information
+                    </h3>
+                    <p style={{ fontSize: '12.5px', color: '#64748B', marginTop: '2px', marginBottom: 0 }}>
+                      Public credentials and territory details for this Modexa account.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsDesktopEditing(true)}
+                    className="btn-primary"
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Pencil size={14} />
+                    <span>Edit Profile</span>
+                  </button>
+                </div>
+
+                {/* Information Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div style={{ padding: '14px', backgroundColor: '#F8FAFC', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
+                    <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                      Full Name
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', marginTop: '4px' }}>
+                      {user.name}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '14px', backgroundColor: '#F8FAFC', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
+                    <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                      Email Address
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: 600, color: '#0B63E5', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>{user.email}</span>
+                      <CheckCircle2 size={15} style={{ color: '#16A34A', flexShrink: 0 }} />
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '14px', backgroundColor: '#F8FAFC', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
+                    <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                      Contact Phone
+                    </div>
+                    <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#0F172A', marginTop: '4px' }}>
+                      {user.phone || '—'}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '14px', backgroundColor: '#F8FAFC', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
+                    <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                      Assigned Location / Territory
+                    </div>
+                    <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#0F172A', marginTop: '4px' }}>
+                      {user.location || 'New Delhi, India'}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '14px', backgroundColor: '#F8FAFC', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
+                    <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                      Department
+                    </div>
+                    <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#0F172A', marginTop: '4px' }}>
+                      {user.department || 'Executive Administration'}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '14px', backgroundColor: '#F8FAFC', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
+                    <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                      System Role
+                    </div>
+                    <div style={{ fontSize: '14.5px', fontWeight: 700, color: '#0B63E5', marginTop: '4px' }}>
+                      {user.role} (Superadmin privileges)
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bio Block */}
+                <div style={{ marginTop: '20px', padding: '14px', backgroundColor: '#F8FAFC', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
+                  <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                    Administrator Bio
+                  </div>
+                  <div style={{ fontSize: '13.5px', color: '#334155', marginTop: '6px', lineHeight: 1.6 }}>
+                    {user.bio || 'Enterprise administrator for Modexa TapCard operations and NFC Google Review stands.'}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Security & Password Form */}
             <div className="surface-card" style={{ padding: '28px' }}>
@@ -495,6 +913,14 @@ export const ProfilePage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Instagram-style Image Crop & Adjust Modal */}
+        <ImageCropModal
+          isOpen={cropModalOpen}
+          imageSrc={selectedRawImage}
+          onClose={() => setCropModalOpen(false)}
+          onCropComplete={handleCropComplete}
+        />
       </div>
     );
   }
@@ -504,6 +930,15 @@ export const ProfilePage: React.FC = () => {
   // ========================================================
   return (
     <div style={{ backgroundColor: '#F8FAFC', minHeight: '100%', paddingBottom: '90px' }}>
+      {/* Hidden File Picker Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        style={{ display: 'none' }}
+        onChange={handlePhotoSelect}
+      />
+
       {/* Header with Top Right Corner Pencil Edit Button */}
       <div
         style={{
@@ -538,7 +973,7 @@ export const ProfilePage: React.FC = () => {
           </h1>
         </div>
 
-        {/* Top Right Actions: Pencil Edit Icon Button requested by user */}
+        {/* Top Right Actions: Pencil Edit Icon Button */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             type="button"
@@ -744,6 +1179,7 @@ export const ProfilePage: React.FC = () => {
                 <button
                   type="submit"
                   className="btn-primary"
+                  disabled={isSaving}
                   style={{
                     flex: 2,
                     padding: '10px',
@@ -754,10 +1190,12 @@ export const ProfilePage: React.FC = () => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
+                    opacity: isSaving ? 0.7 : 1,
+                    cursor: isSaving ? 'not-allowed' : 'pointer',
                   }}
                 >
                   <Save size={15} />
-                  <span>Save Changes</span>
+                  <span>{isSaving ? 'Saving to Firebase...' : 'Save Changes'}</span>
                 </button>
               </div>
             </form>
@@ -765,7 +1203,7 @@ export const ProfilePage: React.FC = () => {
         ) : (
           /* STANDARD MOBILE PROFILE VIEW */
           <>
-            {/* User Card - Photo in Circle as requested */}
+            {/* User Card with Photo Upload */}
             <div
               style={{
                 backgroundColor: '#FFFFFF',
@@ -778,29 +1216,65 @@ export const ProfilePage: React.FC = () => {
                 gap: '16px',
               }}
             >
-              {/* Circular Avatar Photo */}
-              <div
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '50%',
-                  backgroundColor: '#0B63E5',
-                  color: '#FFFFFF',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px',
-                  fontWeight: 700,
-                  boxShadow: '0 4px 12px rgba(11, 99, 229, 0.25)',
-                  flexShrink: 0,
-                  border: '2px solid #FFFFFF',
-                }}
-              >
-                {user.name.charAt(0)}
+              {/* Circular Avatar Photo with Camera button */}
+              <div style={{ position: 'relative', width: '68px', height: '68px', flexShrink: 0 }}>
+                <div
+                  style={{
+                    width: '68px',
+                    height: '68px',
+                    borderRadius: '50%',
+                    backgroundColor: '#0B63E5',
+                    color: '#FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '26px',
+                    fontWeight: 700,
+                    boxShadow: '0 4px 12px rgba(11, 99, 229, 0.25)',
+                    border: '2px solid #FFFFFF',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    user.name.charAt(0)
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingPhoto}
+                  title="Upload profile photo"
+                  aria-label="Upload profile photo"
+                  style={{
+                    position: 'absolute',
+                    bottom: '-2px',
+                    right: '-2px',
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '50%',
+                    backgroundColor: '#0B63E5',
+                    color: '#FFFFFF',
+                    border: '2px solid #FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                  }}
+                >
+                  <Camera size={12} />
+                </button>
               </div>
 
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
                     {user.name}
                   </h2>
@@ -817,151 +1291,289 @@ export const ProfilePage: React.FC = () => {
                   >
                     {user.role}
                   </span>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      backgroundColor: '#ECFDF5',
+                      color: '#059669',
+                      padding: '2px 7px',
+                      borderRadius: '9999px',
+                      border: '1px solid #A7F3D0',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                    }}
+                  >
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10B981' }} />
+                    Firebase
+                  </span>
                 </div>
 
                 <p style={{ fontSize: '12px', color: '#64748B', marginTop: '3px', marginBottom: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <Mail size={13} style={{ color: '#94A3B8' }} />
-                  <span>{user.email}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</span>
                 </p>
-                <p style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '2px', marginBottom: 0 }}>
-                  Modexa TapCard Field Operations • {user.location}
-                </p>
+
+                {/* Mobile Photo Action links */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingPhoto}
+                    style={{
+                      fontSize: '11.5px',
+                      fontWeight: 600,
+                      color: '#0B63E5',
+                      border: 'none',
+                      background: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {isUploadingPhoto ? 'Uploading...' : user.avatarUrl ? 'Change Photo' : 'Upload Photo'}
+                  </button>
+                  {user.avatarUrl && (
+                    <>
+                      <span style={{ color: '#CBD5E1', fontSize: '10px' }}>•</span>
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        disabled={isUploadingPhoto}
+                        style={{
+                          fontSize: '11.5px',
+                          fontWeight: 500,
+                          color: '#DC2626',
+                          border: 'none',
+                          background: 'none',
+                          padding: 0,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Quick Details Card */}
-            <div className="surface-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12.5px', color: '#475569' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Phone size={13} style={{ color: '#94A3B8' }} />
-                  Phone:
-                </span>
-                <strong style={{ color: '#0F172A' }}>{user.phone}</strong>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Building2 size={13} style={{ color: '#94A3B8' }} />
-                  Department:
-                </span>
-                <strong style={{ color: '#0F172A' }}>{user.department}</strong>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Shield size={13} style={{ color: '#16A34A' }} />
-                  Access Level:
-                </span>
-                <span style={{ color: '#16A34A', fontWeight: 600 }}>Level 3 Administrator</span>
-              </div>
-            </div>
-
-            {/* System Scope Metrics - ZERO taps and ZERO scans as requested */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+            {/* Scope Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div
                 style={{
                   backgroundColor: '#FFFFFF',
                   borderRadius: '12px',
                   border: '1px solid #E2E8F0',
-                  padding: '14px 10px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px' }}>
-                  <CreditCard size={16} />
-                </div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A' }}>
-                  {stats.activeCards}
-                </div>
-                <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 500, marginTop: '2px' }}>
-                  Managed Cards
-                </div>
-              </div>
-
-              <div
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '12px',
-                  border: '1px solid #E2E8F0',
-                  padding: '14px 10px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#F3E8FF', color: '#7E22CE', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px' }}>
-                  <Store size={16} />
-                </div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A' }}>
-                  {stats.businesses}
-                </div>
-                <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 500, marginTop: '2px' }}>
-                  Businesses
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div style={{ backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid #E2E8F0', overflow: 'hidden' }}>
-              <div
-                onClick={() => setIsMobileEditing(true)}
-                style={{
-                  padding: '14px 16px',
+                  padding: '14px',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  cursor: 'pointer',
-                  borderBottom: '1px solid #F1F5F9',
+                  gap: '12px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Pencil size={18} style={{ color: '#0B63E5' }} />
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A' }}>Edit Profile Information</div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>Change name, phone, email & bio</div>
-                  </div>
-                </div>
-                <ChevronRight size={16} style={{ color: '#94A3B8' }} />
-              </div>
-
-              {user.role === 'Admin' && (
                 <div
-                  onClick={() => navigateTo('settings')}
                   style={{
-                    padding: '14px 16px',
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '8px',
+                    backgroundColor: '#EFF6FF',
+                    color: '#0B63E5',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    borderBottom: '1px solid #F1F5F9',
+                    justifyContent: 'center',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Settings size={18} style={{ color: '#7C3AED' }} />
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A' }}>Platform Settings</div>
-                      <div style={{ fontSize: '11px', color: '#64748B' }}>Smart-routing rules, system settings</div>
-                    </div>
-                  </div>
-                  <ChevronRight size={16} style={{ color: '#94A3B8' }} />
+                  <CreditCard size={18} />
                 </div>
-              )}
+                <div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A' }}>
+                    {stats.activeCards}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748B' }}>Assigned Cards</div>
+                </div>
+              </div>
 
               <div
-                onClick={() => showToast('Modexa TapCard v2.0 • Security Verified', 'info')}
                 style={{
-                  padding: '14px 16px',
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '12px',
+                  border: '1px solid #E2E8F0',
+                  padding: '14px',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  cursor: 'pointer',
+                  gap: '12px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Shield size={18} style={{ color: '#16A34A' }} />
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A' }}>Security & Compliance</div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>SOC2 Certified, Google OAuth 2.0</div>
-                  </div>
+                <div
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '8px',
+                    backgroundColor: '#F3E8FF',
+                    color: '#7C3AED',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Store size={18} />
                 </div>
-                <ChevronRight size={16} style={{ color: '#94A3B8' }} />
+                <div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A' }}>
+                    {stats.businesses}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748B' }}>Businesses</div>
+                </div>
               </div>
+            </div>
+
+            {/* Account Details Card */}
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '16px',
+                border: '1px solid #E2E8F0',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>Account Credentials</span>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileEditing(true)}
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#0B63E5',
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <Pencil size={12} />
+                  <span>Edit</span>
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', color: '#334155' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #F8FAFC' }}>
+                  <span style={{ color: '#64748B' }}>Phone</span>
+                  <span style={{ fontWeight: 600 }}>{user.phone || '—'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #F8FAFC' }}>
+                  <span style={{ color: '#64748B' }}>Territory</span>
+                  <span style={{ fontWeight: 600 }}>{user.location || 'New Delhi'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #F8FAFC' }}>
+                  <span style={{ color: '#64748B' }}>Department</span>
+                  <span style={{ fontWeight: 600 }}>{user.department || 'Operations'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748B' }}>Role Tier</span>
+                  <span style={{ fontWeight: 700, color: '#0B63E5' }}>{user.role}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Password Update Card on Mobile */}
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '16px',
+                border: '1px solid #E2E8F0',
+                padding: '16px',
+              }}
+            >
+              <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A', margin: '0 0 12px 0' }}>
+                Security & Password
+              </h3>
+
+              <form onSubmit={handlePasswordUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #CBD5E1',
+                      fontSize: '12px',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Min. 8 characters"
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #CBD5E1',
+                      fontSize: '12px',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #CBD5E1',
+                      fontSize: '12px',
+                    }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  style={{
+                    marginTop: '4px',
+                    padding: '9px',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1',
+                    backgroundColor: '#FFFFFF',
+                    color: '#0F172A',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <KeyRound size={13} />
+                  <span>Update Password</span>
+                </button>
+              </form>
             </div>
 
             {/* Sign Out Button */}
@@ -970,29 +1582,35 @@ export const ProfilePage: React.FC = () => {
               onClick={handleLogout}
               style={{
                 width: '100%',
-                padding: '13px',
+                padding: '12px',
+                borderRadius: '12px',
                 backgroundColor: '#FFFFFF',
                 border: '1px solid #FCA5A5',
-                borderRadius: '12px',
                 color: '#DC2626',
-                fontSize: '14px',
+                fontSize: '13px',
                 fontWeight: 600,
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '8px',
-                cursor: 'pointer',
+                gap: '6px',
                 boxShadow: '0 1px 2px rgba(220, 38, 38, 0.05)',
-                marginTop: '4px',
               }}
             >
               <LogOut size={16} />
-              <span>Sign Out of Modexa TapCard</span>
+              <span>Sign Out from Modexa</span>
             </button>
           </>
         )}
       </div>
+
+      {/* Instagram-style Image Crop & Adjust Modal (Mobile) */}
+      <ImageCropModal
+        isOpen={cropModalOpen}
+        imageSrc={selectedRawImage}
+        onClose={() => setCropModalOpen(false)}
+        onCropComplete={handleCropComplete}
+      />
     </div>
   );
 };
-

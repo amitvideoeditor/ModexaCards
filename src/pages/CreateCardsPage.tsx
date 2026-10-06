@@ -20,6 +20,7 @@ import { useApp } from '../context/AppContext';
 import { MobileHeader } from '../components/MobileHeader';
 import { GoogleReviewAcrylicStand } from '../components/GoogleReviewAcrylicStand';
 import type { CardItem, CardStatus } from '../types';
+import { BUSINESS_CATEGORIES, getCategoryThumbnail } from '../data/categoryThumbnails';
 
 interface GeneratedCardData {
   id: string;
@@ -283,7 +284,7 @@ export const CreateCardsPage: React.FC = () => {
       qrScans: 0,
       nfcTaps: 0,
       googleReviewUrl: buildDynamicUrl(cleanId),
-      thumbnail: 'https://images.unsplash.com/photo-1556742049-0a67c5574f73?w=150&auto=format&fit=crop&q=80',
+      thumbnail: getCategoryThumbnail(singleCategory, undefined, singleBusinessName.trim()),
     };
 
     await addNewSingleCard(newCard);
@@ -1527,11 +1528,11 @@ export const CreateCardsPage: React.FC = () => {
                       backgroundColor: '#FFFFFF',
                     }}
                   >
-                    <option value="Healthcare & Wellness">Healthcare & Wellness</option>
-                    <option value="Hospitality & Dining">Hospitality & Dining</option>
-                    <option value="Beauty & Wellness">Beauty & Wellness</option>
-                    <option value="Retail & Showrooms">Retail & Showrooms</option>
-                    <option value="Automotive & Services">Automotive & Services</option>
+                    {BUSINESS_CATEGORIES.map((cat) => (
+                      <option key={cat.id} value={cat.name}>
+                        {cat.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

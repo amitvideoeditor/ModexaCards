@@ -98,25 +98,89 @@ export interface FirestoreUserData {
   location?: string;
   bio?: string;
   department?: string;
+  notificationsEnabled?: boolean;
+  avatarUrl?: string;
   createdAt?: any;
+  updatedAt?: any;
 }
 
 /**
  * Fetch authorized user record from Firestore: users/{uid}
+ * Checks users/{uid} first, and falls back to users/{email} if uid document is not found.
  */
-export async function getUserDocFromFirestore(uid: string): Promise<FirestoreUserData | null> {
+export async function getUserDocFromFirestore(uid: string, fallbackEmail?: string | null): Promise<FirestoreUserData | null> {
   if (!db) return null;
   try {
-    const userDocRef = doc(db, 'users', uid.trim());
+    const cleanUid = uid.trim();
+    const userDocRef = doc(db, 'users', cleanUid);
     const snap = await getDoc(userDocRef);
     if (snap.exists()) {
       return snap.data() as FirestoreUserData;
+    }
+    // Fallback: Check if document was saved with email as document key
+    if (fallbackEmail) {
+      const cleanEmail = fallbackEmail.trim().toLowerCase();
+      const emailDocRef = doc(db, 'users', cleanEmail);
+      const emailSnap = await getDoc(emailDocRef);
+      if (emailSnap.exists()) {
+        const emailData = emailSnap.data() as FirestoreUserData;
+        // Mirror/clone to users/{uid} so future lookups find it instantly
+        try {
+          await setDoc(userDocRef, emailData, { merge: true });
+        } catch {}
+        return emailData;
+      }
     }
     return null;
   } catch (err) {
     console.error(`[Firebase] Error fetching user doc for uid "${uid}":`, err);
     return null;
   }
+}
+
+/**
+ * Save / Update authorized user record in Cloud Firestore: users/{uid}
+ * Merges updates to keep existing fields (role, active, createdAt, etc.) intact.
+ */
+export async function updateUserDocInFirestore(
+  uid: string,
+  data: Partial<FirestoreUserData>,
+  fallbackEmail?: string | null
+): Promise<boolean> {
+  if (!db) {
+    throw new Error('Firestore database instance not initialized.');
+  }
+  const cleanUid = uid.trim();
+  const userDocRef = doc(db, 'users', cleanUid);
+
+  const dataToSave: Record<string, any> = {
+    ...data,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // Strip undefined keys so Firestore doesn't reject payload
+  Object.keys(dataToSave).forEach((key) => {
+    if (dataToSave[key] === undefined) {
+      delete dataToSave[key];
+    }
+  });
+
+  await setDoc(userDocRef, dataToSave, { merge: true });
+
+  // If email is provided and differs from uid, mirror to users/{email}
+  if (fallbackEmail) {
+    const cleanEmail = fallbackEmail.trim().toLowerCase();
+    if (cleanEmail !== cleanUid.toLowerCase()) {
+      try {
+        const emailDocRef = doc(db, 'users', cleanEmail);
+        await setDoc(emailDocRef, dataToSave, { merge: true });
+      } catch {
+        // Non-fatal if secondary doc fails
+      }
+    }
+  }
+
+  return true;
 }
 
 // =========================================================================
