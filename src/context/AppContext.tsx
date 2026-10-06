@@ -21,6 +21,19 @@ import {
   defaultPlatformSettings,
 } from '../data/mockData';
 import {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  updatePassword as fbUpdatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  type User,
+} from 'firebase/auth';
+import {
+  auth,
+  getUserDocFromFirestore,
+  type FirestoreUserData,
   isInitialized as isFirebaseInitialized,
   getCardsFromFirestore,
   saveCardToFirestore,
@@ -43,6 +56,9 @@ interface AppContextType {
   updateUserProfile: (updates: Partial<UserProfile>) => void;
   isAuthenticated: boolean;
   setIsAuthenticated: (val: boolean) => void;
+  authLoading: boolean;
+  firebaseUser: User | null;
+  authUserDoc: FirestoreUserData | null;
   cards: CardItem[];
   stats: StatSummary;
   activities: ActivityRecord[];
@@ -53,7 +69,7 @@ interface AppContextType {
   removeTeamMember: (id: string) => void;
   updateTeamMemberRole: (id: string, newRole: TeamMember['role']) => void;
   updateTeamMember: (id: string, updates: Partial<TeamMember>, newPassword?: string) => void;
-  updateUserPasswordByAdmin: (email: string, newPass: string) => { success: boolean; message: string };
+  updateUserPasswordByAdmin: (email: string, newPass?: string) => Promise<{ success: boolean; message: string }>;
   settings: PlatformSettings;
   updateSettings: (updates: Partial<PlatformSettings>) => void;
   currentView: ViewScreen;
@@ -112,8 +128,9 @@ interface AppContextType {
   canToggleCardStatus: (card: CardItem) => boolean;
   login: (email: string, pass: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
-  updatePassword: (currentPass: string, newPass: string) => { success: boolean; message: string };
-  resetPassword: (email: string, currentPass: string, newPass: string) => { success: boolean; message: string };
+  updatePassword: (currentPass: string, newPass: string) => Promise<{ success: boolean; message: string }>;
+  resetPassword: (email: string, currentPass?: string, newPass?: string) => Promise<{ success: boolean; message: string }>;
+  sendPasswordResetLink: (email: string) => Promise<{ success: boolean; message: string }>;
 }
 
 export function getHashForView(view: ViewScreen, cardId?: string): string {
@@ -146,16 +163,8 @@ export function getHashForView(view: ViewScreen, cardId?: string): string {
 }
 
 export function parseHash(hash: string): { view: ViewScreen; cardId?: string } {
-  let hasSession = false;
-  if (typeof window !== 'undefined') {
-    try {
-      const session = localStorage.getItem('modexa_admin_session');
-      hasSession = Boolean(session && JSON.parse(session)?.email);
-    } catch {}
-  }
-
   if (!hash || hash === '#' || hash === '#/') {
-    return { view: hasSession ? 'dashboard' : 'login' };
+    return { view: 'dashboard' };
   }
   const clean = hash.replace(/^#\/?/, '');
   const [path, queryStr] = clean.split('?');
@@ -176,11 +185,7 @@ export function parseHash(hash: string): { view: ViewScreen; cardId?: string } {
     'profile',
   ];
 
-  if (!hasSession && path !== 'login') {
-    return { view: 'login', cardId };
-  }
-
-  const view = validViews.includes(path as ViewScreen) ? (path as ViewScreen) : (hasSession ? 'dashboard' : 'login');
+  const view = validViews.includes(path as ViewScreen) ? (path as ViewScreen) : 'dashboard';
   return { view, cardId };
 }
 
@@ -231,68 +236,6 @@ function getInitialStoredSettings(): PlatformSettings {
   return defaultPlatformSettings;
 }
 
-export const adminDirectory: Record<string, { name: string; email: string; phone: string; location: string; bio: string; department: string }> = {
-  'amit@modexacards.com': {
-    name: 'Amit Maurya',
-    email: 'amit@modexacards.com',
-    phone: '+91 98111 22334',
-    location: 'New Delhi, India',
-    bio: 'Lead System Administrator managing enterprise Modexa TapCard NFC deployments & partner clinics across Delhi NCR.',
-    department: 'Operations & Field Success',
-  },
-  'admin@modexacards.com': {
-    name: 'Amit Maurya',
-    email: 'admin@modexacards.com',
-    phone: '+91 98111 22334',
-    location: 'New Delhi, India',
-    bio: 'Lead System Administrator managing enterprise Modexa TapCard NFC deployments & partner clinics across Delhi NCR.',
-    department: 'Operations & Field Success',
-  },
-  'shubham@modexacards.com': {
-    name: 'Shubham',
-    email: 'shubham@modexacards.com',
-    phone: '+91 98111 55667',
-    location: 'New Delhi, India',
-    bio: 'System Administrator (Shubham) managing enterprise Modexa TapCard NFC deployments & partner accounts.',
-    department: 'Executive Administration',
-  },
-  'shubham.admin@modexacards.com': {
-    name: 'Shubham',
-    email: 'shubham.admin@modexacards.com',
-    phone: '+91 98111 55667',
-    location: 'New Delhi, India',
-    bio: 'System Administrator (Shubham) managing enterprise Modexa TapCard NFC deployments & partner accounts.',
-    department: 'Executive Administration',
-  },
-  'rahul@modexacards.com': {
-    name: 'Rahul Verma',
-    email: 'rahul@modexacards.com',
-    phone: '+91 98111 66778',
-    location: 'New Delhi, India',
-    bio: 'System Administrator (Rahul Verma) managing enterprise Modexa hardware production and card stock.',
-    department: 'Hardware Production & Infrastructure',
-  },
-  'admin2@modexacards.com': {
-    name: 'Rahul Verma',
-    email: 'admin2@modexacards.com',
-    phone: '+91 98111 66778',
-    location: 'New Delhi, India',
-    bio: 'System Administrator (Rahul Verma) managing enterprise Modexa hardware production and card stock.',
-    department: 'Hardware Production & Infrastructure',
-  },
-};
-
-export const defaultAdminProfile: UserProfile = {
-  name: 'Amit Maurya',
-  email: 'amit@modexacards.com',
-  role: 'Admin',
-  phone: '+91 98111 22334',
-  location: 'New Delhi, India',
-  bio: 'Lead System Administrator managing enterprise Modexa TapCard NFC deployments & partner clinics across Delhi NCR.',
-  department: 'Operations & Field Success',
-  notificationsEnabled: true,
-};
-
 export const guestProfile: UserProfile = {
   name: 'Staff Member',
   email: '',
@@ -304,59 +247,48 @@ export const guestProfile: UserProfile = {
   notificationsEnabled: false,
 };
 
+export function mapFirestoreUserToProfile(userDoc: FirestoreUserData, fbUser: User): UserProfile {
+  const roleRaw = (userDoc.role || 'admin').trim();
+  const capitalizedRole = roleRaw.charAt(0).toUpperCase() + roleRaw.slice(1).toLowerCase();
+  return {
+    name: userDoc.name || fbUser.displayName || 'Administrator',
+    email: fbUser.email || userDoc.email || '',
+    role: capitalizedRole,
+    phone: userDoc.phone || '',
+    location: userDoc.location || 'New Delhi, India',
+    bio: userDoc.bio || 'Modexa TapCard System Administrator',
+    department: userDoc.department || 'Executive Administration',
+    notificationsEnabled: true,
+  };
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const initialNav = typeof window !== 'undefined' ? parseHash(window.location.hash) : { view: 'login' as ViewScreen };
+  const initialNav = typeof window !== 'undefined' ? parseHash(window.location.hash) : { view: 'dashboard' as ViewScreen };
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    try {
-      const session = localStorage.getItem('modexa_admin_session');
-      if (session) {
-        const parsed = JSON.parse(session);
-        return Boolean(parsed && parsed.email);
-      }
-    } catch {}
-    return false;
-  });
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [authUserDoc, setAuthUserDoc] = useState<FirestoreUserData | null>(null);
+  const [isAuthenticated, setIsAuthenticatedState] = useState<boolean>(false);
+  const [user, setUser] = useState<UserProfile>(guestProfile);
 
-  const [user, setUser] = useState<UserProfile>(() => {
-    try {
-      const session = localStorage.getItem('modexa_admin_session');
-      if (session) {
-        const parsed = JSON.parse(session);
-        if (parsed && parsed.email) {
-          const clean = parsed.email.trim().toLowerCase();
-          const matchedAdmin = adminDirectory[clean];
-          return {
-            name: parsed.name || matchedAdmin?.name || 'Staff Member',
-            email: parsed.email,
-            role: parsed.role || (matchedAdmin ? 'Admin' : 'Viewer'),
-            phone: parsed.phone || matchedAdmin?.phone || '',
-            location: parsed.location || matchedAdmin?.location || 'New Delhi, India',
-            bio: parsed.bio || matchedAdmin?.bio || '',
-            department: parsed.department || matchedAdmin?.department || 'Field Operations',
-            notificationsEnabled: true,
-          };
-        }
+  const setIsAuthenticated = (val: boolean) => {
+    if (!val) {
+      if (auth) {
+        signOut(auth).catch(() => {});
       }
-    } catch {}
-    return guestProfile;
-  });
+      setIsAuthenticatedState(false);
+      setUser(guestProfile);
+    } else {
+      console.warn('[Security] Authentication cannot be set manually. Firebase Authentication is the sole source of truth.');
+    }
+  };
 
   const [cards, setCards] = useState<CardItem[]>(getInitialStoredCards);
   const [stats, setStats] = useState<StatSummary>(getInitialStoredStats);
   const [activities, setActivities] = useState<ActivityRecord[]>(getInitialStoredActivities);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initialTeamMembers);
   const [settings, setSettings] = useState<PlatformSettings>(getInitialStoredSettings);
-  const [currentView, setCurrentView] = useState<ViewScreen>(() => {
-    try {
-      const session = localStorage.getItem('modexa_admin_session');
-      const hasAuth = Boolean(session && JSON.parse(session)?.email);
-      if (!hasAuth) {
-        return 'login';
-      }
-    } catch {}
-    return initialNav.view || 'login';
-  });
+  const [currentView, setCurrentView] = useState<ViewScreen>(initialNav.view || 'login');
   const [activeDesktopNav, setActiveDesktopNav] = useState<DesktopNav>('Dashboard');
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>('home');
   const [selectedCardId, setSelectedCardId] = useState<string>(initialNav.cardId || '');
@@ -431,14 +363,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {}
   }, [settings]);
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('modexa_admin_password');
-      if (!stored || stored === 'password123') {
-        localStorage.setItem('modexa_admin_password', 'Amit@&1202');
-      }
-    } catch (e) {}
-  }, []);
 
   // Sync with Firestore Cloud Database on mount
   useEffect(() => {
@@ -525,7 +449,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Platform settings saved successfully!', 'success');
   };
 
-  const addTeamMember = (member: Omit<TeamMember, 'id' | 'lastActive'>, initialPassword?: string) => {
+  const addTeamMember = (member: Omit<TeamMember, 'id' | 'lastActive'>, _initialPassword?: string) => {
     if (user.role !== 'Admin') {
       showToast('Permission Denied: Only Admin can create new users or IDs.', 'error');
       return;
@@ -540,23 +464,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setTeamMembers((prev) => [newMember, ...prev]);
 
-    const cleanMail = member.email.trim().toLowerCase();
-    const finalPassword = initialPassword?.trim() || DEFAULT_ADMIN_PASSWORD;
-    try {
-      localStorage.setItem(`modexa_password_${cleanMail}`, finalPassword);
-    } catch {}
-
     addActivity({
       type: 'Member Joined',
       source: `Admin Console (${user.name})`,
       cardId: 'TEAM-ID',
       businessName: 'Modexa Staff Directory',
       location: member.assignedRegion || 'Delhi NCR',
-      details: `New ${member.role} ID created for ${member.name} (${member.email}) by Admin ${user.name}`,
+      details: `New ${member.role} profile registered for ${member.name} (${member.email}) by Admin ${user.name}`,
       performer: user.name,
     });
 
-    showToast(`Added ${newMember.name} to the team! Initial credentials set.`, 'success');
+    showToast(`Added ${newMember.name} to the team!`, 'success');
   };
 
   const removeTeamMember = (id: string) => {
@@ -577,9 +495,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Member role permissions updated.', 'success');
   };
 
-  const updateTeamMember = (id: string, updates: Partial<TeamMember>, newPassword?: string) => {
+  const updateTeamMember = (id: string, updates: Partial<TeamMember>, _newPassword?: string) => {
     if (user.role !== 'Admin') {
-      showToast('Permission Denied: Only Admin can edit user profiles or passwords.', 'error');
+      showToast('Permission Denied: Only Admin can edit user profiles.', 'error');
       return;
     }
     setTeamMembers((prev) =>
@@ -591,48 +509,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
 
-    const member = teamMembers.find((m) => m.id === id);
-    const targetEmail = (updates.email || member?.email || '').trim().toLowerCase();
-    if (targetEmail && newPassword && newPassword.trim().length >= 6) {
-      try {
-        localStorage.setItem(`modexa_password_${targetEmail}`, newPassword.trim());
-      } catch {}
-    }
-
     showToast('Team member details updated successfully.', 'success');
   };
 
-  const updateUserPasswordByAdmin = (email: string, newPass: string): { success: boolean; message: string } => {
+  const updateUserPasswordByAdmin = async (email: string, _newPass?: string): Promise<{ success: boolean; message: string }> => {
     if (user.role !== 'Admin') {
-      return { success: false, message: 'Permission Denied: Only Admin can edit or reset other users’ passwords.' };
+      return { success: false, message: 'Permission Denied: Only Admin can manage user credentials.' };
     }
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = email.trim();
     if (!cleanEmail) {
       return { success: false, message: 'Invalid email address.' };
     }
-    if (!newPass || newPass.trim().length < 6) {
-      return { success: false, message: 'Password must be at least 6 characters long.' };
-    }
 
     try {
-      localStorage.setItem(`modexa_password_${cleanEmail}`, newPass.trim());
-      if (adminDirectory[cleanEmail]) {
-        localStorage.setItem('modexa_admin_password', newPass.trim());
+      if (auth) {
+        await sendPasswordResetEmail(auth, cleanEmail);
       }
-    } catch {}
+      addActivity({
+        type: 'Password Reset',
+        source: `Admin Console (${user.name})`,
+        cardId: 'AUTH-SEC',
+        businessName: 'Modexa Authentication',
+        location: 'New Delhi HQ',
+        details: `Password reset link sent to ${cleanEmail} by Admin ${user.name}`,
+        performer: user.name,
+      });
 
-    addActivity({
-      type: 'Password Reset',
-      source: `Admin Console (${user.name})`,
-      cardId: 'AUTH-SEC',
-      businessName: 'Modexa Authentication',
-      location: 'New Delhi HQ',
-      details: `Password for ${cleanEmail} was updated by Admin ${user.name}`,
-      performer: user.name,
-    });
-
-    showToast(`Password successfully updated for ${cleanEmail}!`, 'success');
-    return { success: true, message: `Password for ${cleanEmail} has been updated.` };
+      showToast(`Password reset link sent to ${cleanEmail}!`, 'success');
+      return { success: true, message: `Password reset link sent to ${cleanEmail}.` };
+    } catch (err: any) {
+      console.warn('[Firebase Auth] Admin reset email error:', err);
+      return { success: false, message: 'Could not send password reset link. Please verify the email.' };
+    }
   };
 
   const addActivity = (activity: Omit<ActivityRecord, 'id' | 'dateTime'>) => {
@@ -1140,199 +1048,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return cleanOwner !== '—' && (cleanOwner === cleanUserName || cleanOwner === cleanUserEmail);
   };
 
-  const DEFAULT_ADMIN_PASSWORD = 'Amit@&1202';
-
-  const getStoredAdminPassword = (): string => {
-    try {
-      const pass = localStorage.getItem('modexa_admin_password');
-      if (pass && pass !== 'password123') return pass;
-    } catch {}
-    return DEFAULT_ADMIN_PASSWORD;
-  };
-
-  const getStoredPasswordForEmail = (cleanEmail: string): string => {
-    try {
-      const custom = localStorage.getItem(`modexa_password_${cleanEmail}`);
-      if (custom) return custom;
-    } catch {}
-    return getStoredAdminPassword();
-  };
-
-  const login = async (email: string, pass: string): Promise<{ success: boolean; message: string }> => {
-    const cleanEmail = email.trim().toLowerCase();
-    const adminPass = getStoredAdminPassword();
-    const userPass = getStoredPasswordForEmail(cleanEmail);
-
-    // 1. Primary Admin check (Amit Maurya, Shubham, Rahul Verma)
-    if (adminDirectory[cleanEmail]) {
-      if (pass !== userPass && pass !== adminPass && pass !== DEFAULT_ADMIN_PASSWORD) {
-        return { success: false, message: 'Invalid password. Please check your credentials.' };
-      }
-      const adminData = adminDirectory[cleanEmail];
-      const adminProfile: UserProfile = {
-        name: adminData.name,
-        email: adminData.email,
-        role: 'Admin',
-        phone: adminData.phone,
-        location: adminData.location,
-        bio: adminData.bio,
-        department: adminData.department,
-        notificationsEnabled: true,
-      };
-      setUser(adminProfile);
-      setIsAuthenticated(true);
-      try {
-        localStorage.setItem(
-          'modexa_admin_session',
-          JSON.stringify({
-            name: adminProfile.name,
-            email: adminProfile.email,
-            role: adminProfile.role,
-            loginAt: Date.now(),
-          })
-        );
-      } catch {}
-      return { success: true, message: `Welcome back, ${adminData.name}!` };
-    }
-
-    // 2. Team member directory check
-    const matchedMember = teamMembers.find((m) => m.email.trim().toLowerCase() === cleanEmail);
-    if (matchedMember) {
-      if (pass !== userPass && pass !== adminPass && pass !== DEFAULT_ADMIN_PASSWORD && pass !== 'password123') {
-        return { success: false, message: 'Invalid password for team member account.' };
-      }
-      const teamProfile: UserProfile = {
-        name: matchedMember.name,
-        email: matchedMember.email,
-        role: matchedMember.role,
-        phone: matchedMember.phone || '',
-        location: matchedMember.assignedRegion || 'New Delhi',
-        bio: `Modexa Staff Member (${matchedMember.role})`,
-        department: 'Field Operations',
-        notificationsEnabled: true,
-      };
-      setUser(teamProfile);
-      setIsAuthenticated(true);
-      try {
-        localStorage.setItem(
-          'modexa_admin_session',
-          JSON.stringify({
-            name: teamProfile.name,
-            email: teamProfile.email,
-            role: teamProfile.role,
-            loginAt: Date.now(),
-          })
-        );
-      } catch {}
-      return { success: true, message: `Welcome back, ${matchedMember.name}!` };
-    }
-
-    return { success: false, message: 'Unauthorized: No account registered with this email address.' };
-  };
-
-  const logout = () => {
-    try {
-      localStorage.removeItem('modexa_admin_session');
-    } catch {}
-    setIsAuthenticated(false);
-    setUser(guestProfile);
-    applyViewState('login', undefined, true);
-    showToast('You have been securely logged out.', 'info');
-  };
-
-  const updatePassword = (currentPass: string, newPass: string): { success: boolean; message: string } => {
-    const cleanEmail = user.email.trim().toLowerCase();
-    const stored = getStoredPasswordForEmail(cleanEmail);
-    if (currentPass !== stored && currentPass !== DEFAULT_ADMIN_PASSWORD) {
-      return { success: false, message: 'Current password does not match.' };
-    }
-    if (newPass.length < 6) {
-      return { success: false, message: 'New password must be at least 6 characters long.' };
-    }
-    try {
-      localStorage.setItem(`modexa_password_${cleanEmail}`, newPass);
-      if (user.role === 'Admin') {
-        localStorage.setItem('modexa_admin_password', newPass);
-      }
-    } catch {}
-    return { success: true, message: 'Password updated successfully! Use your new password on next login.' };
-  };
-
-  const resetPassword = (
-    email: string,
-    currentPass: string,
-    newPass: string
-  ): { success: boolean; message: string } => {
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail) {
-      return { success: false, message: 'Please enter your registered email address.' };
-    }
-
-    const isAdmin = Boolean(adminDirectory[cleanEmail]);
-    const isTeam = teamMembers.some((m) => m.email.trim().toLowerCase() === cleanEmail);
-
-    if (!isAdmin && !isTeam) {
-      return { success: false, message: 'No registered account found with this email address.' };
-    }
-
-    if (!currentPass) {
-      return { success: false, message: 'Please enter your current password.' };
-    }
-
-    const storedPass = getStoredPasswordForEmail(cleanEmail);
-    const adminPass = getStoredAdminPassword();
-
-    // STRICT CHECK: current password MUST match the account's existing password!
-    const isCurrentMatch =
-      currentPass === storedPass ||
-      currentPass === adminPass ||
-      currentPass === DEFAULT_ADMIN_PASSWORD ||
-      (isTeam && currentPass === 'password123');
-
-    if (!isCurrentMatch) {
-      return {
-        success: false,
-        message: 'Current password does not match. Please verify your current password.',
-      };
-    }
-
-    if (!newPass || newPass.length < 6) {
-      return { success: false, message: 'New password must be at least 6 characters long.' };
-    }
-
-    if (newPass === currentPass) {
-      return { success: false, message: 'New password must be different from current password.' };
-    }
-
-    try {
-      localStorage.setItem(`modexa_password_${cleanEmail}`, newPass);
-      if (isAdmin) {
-        localStorage.setItem('modexa_admin_password', newPass);
-      }
-    } catch {}
-
-    addActivity({
-      type: 'Password Reset',
-      source: 'Security & Access Portal',
-      cardId: 'AUTH-SEC',
-      businessName: 'Modexa Authentication',
-      location: 'New Delhi HQ',
-      details: `Password was successfully changed for account: ${cleanEmail}`,
-      performer: cleanEmail,
-    });
-
-    showToast(`Password updated for ${cleanEmail}! Please log in.`, 'success');
-    return { success: true, message: 'Password has been successfully updated! You can now log in.' };
-  };
-
   const applyViewState = (view: ViewScreen, cardId?: string, closeModals: boolean = true) => {
-    let effectiveAuth = false;
-    try {
-      const session = localStorage.getItem('modexa_admin_session');
-      effectiveAuth = Boolean(session && JSON.parse(session)?.email);
-    } catch {}
-
-    const targetView: ViewScreen = !effectiveAuth && view !== 'login' ? 'login' : view;
+    const isAuthed = isAuthenticated;
+    const targetView: ViewScreen = !isAuthed && !authLoading && view !== 'login' ? 'login' : view;
 
     if (cardId) {
       setSelectedCardId(cardId);
@@ -1340,7 +1058,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentView(targetView);
 
     if (targetView === 'login') {
-      setIsAuthenticated(false);
       if (typeof window !== 'undefined' && window.location.hash !== '#/login') {
         window.history.replaceState({ view: 'login' }, '', '#/login');
       }
@@ -1378,17 +1095,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const navigateTo = (view: ViewScreen, cardId?: string, replace: boolean = false) => {
-    let effectiveAuth = false;
-    try {
-      const session = localStorage.getItem('modexa_admin_session');
-      effectiveAuth = Boolean(session && JSON.parse(session)?.email);
-    } catch {}
-
-    const targetView: ViewScreen = !effectiveAuth && view !== 'login' ? 'login' : view;
+    const isAuthed = isAuthenticated;
+    const targetView: ViewScreen = !isAuthed && !authLoading && view !== 'login' ? 'login' : view;
     const targetCardId = cardId || (targetView === 'business-details' ? selectedCardId : undefined);
     const targetHash = getHashForView(targetView, targetCardId);
 
-    // If identical view, cardId, and hash, no need to push duplicate entry
     if (
       targetView === currentView &&
       (!cardId || cardId === selectedCardId) &&
@@ -1414,47 +1125,89 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Sync with browser back / forward arrow buttons
+  // Firebase Authentication State Listener: Sole source of truth for session
   useEffect(() => {
-    let hasSession = false;
-    try {
-      const session = localStorage.getItem('modexa_admin_session');
-      hasSession = Boolean(session && JSON.parse(session)?.email);
-    } catch {}
+    if (!auth) {
+      setAuthLoading(false);
+      setIsAuthenticatedState(false);
+      return;
+    }
 
-    const initial = parseHash(window.location.hash);
-    const effectiveView: ViewScreen = !hasSession ? 'login' : initial.view;
-    const targetHash = getHashForView(effectiveView, initial.cardId || selectedCardId);
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        try {
+          // Check corresponding Firestore user record in users/{uid}
+          const userDoc = await getUserDocFromFirestore(fbUser.uid);
+          const role = (userDoc?.role || '').trim().toLowerCase();
+          const isAllowed = ['admin', 'team', 'manager', 'support', 'field agent'].includes(role);
 
-    window.history.replaceState({ view: effectiveView, cardId: initial.cardId || selectedCardId }, '', targetHash);
-    applyViewState(effectiveView, initial.cardId, false);
+          if (userDoc && userDoc.active === true && isAllowed) {
+            const profile = mapFirestoreUserToProfile(userDoc, fbUser);
+            setFirebaseUser(fbUser);
+            setAuthUserDoc(userDoc);
+            setUser(profile);
+            setIsAuthenticatedState(true);
 
+            // On initial session restoration: if on login, navigate to dashboard; otherwise restore destination
+            const parsed = parseHash(typeof window !== 'undefined' ? window.location.hash : '');
+            if (parsed.view === 'login') {
+              applyViewState('dashboard', undefined, false);
+            } else {
+              applyViewState(parsed.view, parsed.cardId, false);
+            }
+          } else {
+            console.warn('[Firebase Auth] User lacks authorized Firestore record or is inactive. Signing out:', fbUser.email);
+            if (auth) {
+              await signOut(auth);
+            }
+            setFirebaseUser(null);
+            setAuthUserDoc(null);
+            setUser(guestProfile);
+            setIsAuthenticatedState(false);
+            applyViewState('login', undefined, true);
+          }
+        } catch (err) {
+          console.error('[Firebase Auth] Error fetching authorization doc:', err);
+          if (auth) {
+            await signOut(auth);
+          }
+          setFirebaseUser(null);
+          setAuthUserDoc(null);
+          setUser(guestProfile);
+          setIsAuthenticatedState(false);
+          applyViewState('login', undefined, true);
+        }
+      } else {
+        setFirebaseUser(null);
+        setAuthUserDoc(null);
+        setUser(guestProfile);
+        setIsAuthenticatedState(false);
+        applyViewState('login', undefined, true);
+      }
+      setAuthLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Sync with browser back / forward arrow buttons and enforce auth
+  useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      let isAuthed = false;
-      try {
-        const s = localStorage.getItem('modexa_admin_session');
-        isAuthed = Boolean(s && JSON.parse(s)?.email);
-      } catch {}
-
+      const isAuthed = isAuthenticated;
       if (event.state && event.state.view) {
-        const v = !isAuthed && event.state.view !== 'login' ? 'login' : event.state.view;
+        const v = !isAuthed && !authLoading && event.state.view !== 'login' ? 'login' : event.state.view;
         applyViewState(v, event.state.cardId, true);
       } else {
         const parsed = parseHash(window.location.hash);
-        const v = !isAuthed && parsed.view !== 'login' ? 'login' : parsed.view;
+        const v = !isAuthed && !authLoading && parsed.view !== 'login' ? 'login' : parsed.view;
         applyViewState(v, parsed.cardId, true);
       }
     };
 
     const handleHashChange = () => {
-      let isAuthed = false;
-      try {
-        const s = localStorage.getItem('modexa_admin_session');
-        isAuthed = Boolean(s && JSON.parse(s)?.email);
-      } catch {}
-
+      const isAuthed = isAuthenticated;
       const parsed = parseHash(window.location.hash);
-      const v = !isAuthed && parsed.view !== 'login' ? 'login' : parsed.view;
+      const v = !isAuthed && !authLoading && parsed.view !== 'login' ? 'login' : parsed.view;
       applyViewState(v, parsed.cardId, true);
     };
 
@@ -1465,7 +1218,156 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('hashchange', handleHashChange);
     };
-  }, []);
+  }, [isAuthenticated, authLoading]);
+
+  // Real Firebase signInWithEmailAndPassword + Firestore users/{uid} authorization
+  const login = async (email: string, pass: string): Promise<{ success: boolean; message: string }> => {
+    if (!auth) {
+      return { success: false, message: 'Authentication service is unavailable. Please verify Firebase initialization.' };
+    }
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !pass) {
+      return { success: false, message: 'Please enter both email and password.' };
+    }
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+      const fbUser = userCredential.user;
+
+      // Verify Firestore user record: users/{uid}
+      const userDoc = await getUserDocFromFirestore(fbUser.uid);
+      if (!userDoc) {
+        console.warn(`[Auth] Account authenticated but no Firestore user record found for uid: ${fbUser.uid}`);
+        await signOut(auth);
+        return { success: false, message: 'Access denied: No authorized profile found for this account.' };
+      }
+
+      if (userDoc.active !== true) {
+        console.warn(`[Auth] Account is inactive: ${fbUser.email}`);
+        await signOut(auth);
+        return { success: false, message: 'Access denied: Your account has been deactivated. Please contact an administrator.' };
+      }
+
+      const role = (userDoc.role || '').trim().toLowerCase();
+      const isAllowed = ['admin', 'team', 'manager', 'support', 'field agent'].includes(role);
+      if (!isAllowed) {
+        console.warn(`[Auth] Account role not permitted for dashboard: ${role}`);
+        await signOut(auth);
+        return { success: false, message: 'Access denied: You do not have permission to access the management dashboard.' };
+      }
+
+      const profile = mapFirestoreUserToProfile(userDoc, fbUser);
+      setFirebaseUser(fbUser);
+      setAuthUserDoc(userDoc);
+      setUser(profile);
+      setIsAuthenticatedState(true);
+      applyViewState('dashboard', undefined, true);
+      return { success: true, message: `Welcome back, ${profile.name}!` };
+    } catch (error: any) {
+      console.warn('[Firebase Auth] Sign in error:', error?.code, error?.message);
+      const code = error?.code || '';
+      if (
+        code === 'auth/invalid-credential' ||
+        code === 'auth/user-not-found' ||
+        code === 'auth/wrong-password' ||
+        code === 'auth/invalid-email'
+      ) {
+        return { success: false, message: 'Invalid email or password.' };
+      }
+      if (code === 'auth/too-many-requests') {
+        return { success: false, message: 'Too many unsuccessful attempts. Please try again later.' };
+      }
+      if (code === 'auth/user-disabled') {
+        return { success: false, message: 'This account has been disabled. Please contact support.' };
+      }
+      return { success: false, message: 'Invalid email or password.' };
+    }
+  };
+
+  // Real Firebase signOut
+  const logout = async () => {
+    if (auth) {
+      try {
+        await signOut(auth);
+      } catch (err) {
+        console.error('[Firebase Auth] Logout error:', err);
+      }
+    }
+    setFirebaseUser(null);
+    setAuthUserDoc(null);
+    setIsAuthenticatedState(false);
+    setUser(guestProfile);
+
+    // Clean up any residual local storage keys
+    try {
+      localStorage.removeItem('modexa_admin_session');
+      localStorage.removeItem('modexa_admin_password');
+    } catch {}
+
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({ view: 'login' }, '', '#/login');
+    }
+    setCurrentView('login');
+    showToast('You have been securely logged out.', 'info');
+  };
+
+  // Password update via Firebase Auth
+  const updatePassword = async (currentPass: string, newPass: string): Promise<{ success: boolean; message: string }> => {
+    if (!auth || !auth.currentUser || !auth.currentUser.email) {
+      return { success: false, message: 'No authenticated user session found.' };
+    }
+    if (newPass.length < 6) {
+      return { success: false, message: 'New password must be at least 6 characters long.' };
+    }
+
+    try {
+      const cred = EmailAuthProvider.credential(auth.currentUser.email, currentPass);
+      await reauthenticateWithCredential(auth.currentUser, cred);
+      await fbUpdatePassword(auth.currentUser, newPass);
+      return { success: true, message: 'Password updated successfully in Firebase Authentication!' };
+    } catch (err: any) {
+      console.warn('[Firebase Auth] Update password error:', err);
+      if (err?.code === 'auth/wrong-password' || err?.code === 'auth/invalid-credential') {
+        return { success: false, message: 'Current password does not match.' };
+      }
+      if (err?.code === 'auth/weak-password') {
+        return { success: false, message: 'Password is too weak. Please choose a stronger password.' };
+      }
+      return { success: false, message: 'Failed to update password. Please check your credentials.' };
+    }
+  };
+
+  // Dispatch official Firebase password reset email
+  const sendPasswordResetLink = async (email: string): Promise<{ success: boolean; message: string }> => {
+    if (!auth) {
+      return { success: false, message: 'Authentication service is unavailable.' };
+    }
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      return { success: false, message: 'Please enter your registered email address.' };
+    }
+    try {
+      await sendPasswordResetEmail(auth, cleanEmail);
+      return {
+        success: true,
+        message: 'Password reset link sent! Please check your email inbox and spam folder.',
+      };
+    } catch (err: any) {
+      console.warn('[Firebase Auth] Password reset error:', err);
+      return {
+        success: true,
+        message: 'If an account exists with this email, a password reset link has been sent.',
+      };
+    }
+  };
+
+  const resetPassword = async (
+    email: string,
+    _currentPass?: string,
+    _newPass?: string
+  ): Promise<{ success: boolean; message: string }> => {
+    return sendPasswordResetLink(email);
+  };
 
   return (
     <AppContext.Provider
@@ -1545,6 +1447,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         logout,
         updatePassword,
         resetPassword,
+        sendPasswordResetLink,
+        authLoading,
+        firebaseUser,
+        authUserDoc,
       }}
     >
       {children}

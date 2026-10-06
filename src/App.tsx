@@ -22,6 +22,8 @@ import { NotificationsModal } from './components/NotificationsModal';
 import { ToastContainer } from './components/Toast';
 import { CustomerTapRedirectPage } from './pages/CustomerTapRedirectPage';
 
+import { ProtectedRoute } from './components/ProtectedRoute';
+
 function getTapCardIdFromUrl(): string | null {
   if (typeof window === 'undefined') return null;
 
@@ -45,6 +47,7 @@ const AppContent: React.FC = () => {
   const {
     currentView,
     isAuthenticated,
+    authLoading,
     isMobile,
     cards,
   } = useApp();
@@ -63,7 +66,7 @@ const AppContent: React.FC = () => {
     };
   }, []);
 
-  // 0. CUSTOMER LIVE TAP / QR SCAN REDIRECT SCREEN
+  // 0. CUSTOMER LIVE TAP / QR SCAN REDIRECT SCREEN (Always Public)
   if (tapCardId) {
     return (
       <CustomerTapRedirectPage
@@ -83,7 +86,45 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // 1. LOGIN SCREEN
+  // 1. AUTH LOADING SCREEN (Prevents flash of protected content before Firebase resolves)
+  if (authLoading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#F8FAFC',
+          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+        }}
+      >
+        <div style={{ textAlign: 'center', padding: '24px' }}>
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              border: '3px solid #E2E8F0',
+              borderTopColor: '#0B63E5',
+              animation: 'spin 0.8s linear infinite',
+              margin: '0 auto 16px',
+            }}
+          />
+          <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#0F172A', margin: '0 0 6px 0' }}>
+            Verifying Security Credentials...
+          </h2>
+          <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>
+            Checking Firebase Authentication session & permissions
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. LOGIN SCREEN
   if (!isAuthenticated || currentView === 'login') {
     if (isMobile) {
       return (
@@ -130,60 +171,62 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // 2. MOBILE VIEW (Screen width < 1024px)
-  // Naturally fills the browser screen as a responsive web app/PWA
+  // 3. MOBILE VIEW (Screen width < 1024px)
   if (isMobile) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          width: '100%',
-          backgroundColor: '#FFFFFF',
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <main style={{ flex: 1, paddingBottom: '76px', width: '100%' }}>
-          {renderCurrentView()}
-        </main>
+      <ProtectedRoute>
+        <div
+          style={{
+            minHeight: '100vh',
+            width: '100%',
+            backgroundColor: '#FFFFFF',
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <main style={{ flex: 1, paddingBottom: '76px', width: '100%' }}>
+            {renderCurrentView()}
+          </main>
 
-        {/* Fixed Mobile Bottom Navigation */}
-        <MobileBottomNav />
+          {/* Fixed Mobile Bottom Navigation */}
+          <MobileBottomNav />
 
-        {/* Overlays & Modals */}
-        <ActivateCardDrawer />
+          {/* Overlays & Modals */}
+          <ActivateCardDrawer />
+          <ChangeLinkModal />
+          <DisableCardModal />
+          <ScanModal />
+          <NotificationsModal />
+          <ToastContainer />
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  // 4. DESKTOP SAAS DASHBOARD (Desktop viewport >= 1024px)
+  return (
+    <ProtectedRoute>
+      <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#F8FAFC', display: 'flex' }}>
+        {/* Desktop Left Sidebar */}
+        <Sidebar />
+
+        {/* Main Content Area */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh' }}>
+          <Topbar />
+          <main style={{ flex: 1, overflowY: 'auto' }}>
+            {renderCurrentView()}
+          </main>
+        </div>
+
+        {/* Desktop Modals */}
         <ChangeLinkModal />
         <DisableCardModal />
         <ScanModal />
         <NotificationsModal />
         <ToastContainer />
       </div>
-    );
-  }
-
-  // 3. DESKTOP SAAS DASHBOARD (Desktop viewport >= 1024px)
-  // Matching Reference Image 2 pixel-closely with Left Sidebar & Topbar
-  return (
-    <div style={{ minHeight: '100vh', width: '100%', backgroundColor: '#F8FAFC', display: 'flex' }}>
-      {/* Desktop Left Sidebar */}
-      <Sidebar />
-
-      {/* Main Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh' }}>
-        <Topbar />
-        <main style={{ flex: 1, overflowY: 'auto' }}>
-          {renderCurrentView()}
-        </main>
-      </div>
-
-      {/* Desktop Modals */}
-      <ChangeLinkModal />
-      <DisableCardModal />
-      <ScanModal />
-      <NotificationsModal />
-      <ToastContainer />
-    </div>
+    </ProtectedRoute>
   );
 };
 

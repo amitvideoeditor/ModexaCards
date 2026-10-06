@@ -16,8 +16,6 @@ import {
   ExternalLink,
   Lock,
   ArrowRight,
-  Eye,
-  EyeOff,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { TeamMember } from '../types';
@@ -40,8 +38,6 @@ export const TeamPage: React.FC = () => {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [modalRole, setModalRole] = useState<TeamMember['role']>('Field Agent');
-  const [memberPassword, setMemberPassword] = useState('');
-  const [showMemberPassword, setShowMemberPassword] = useState(false);
 
   // Form State for new member
   const [newName, setNewName] = useState('');
@@ -50,8 +46,6 @@ export const TeamPage: React.FC = () => {
   const [newRole, setNewRole] = useState<TeamMember['role']>('Field Agent');
   const [newRegion, setNewRegion] = useState('South Delhi & NCR');
   const [newAssignedCards, setNewAssignedCards] = useState(4);
-  const [newPassword, setNewPassword] = useState('Amit@&1202');
-  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const filteredMembers = teamMembers.filter((member) => {
     const matchesSearch =
@@ -75,10 +69,6 @@ export const TeamPage: React.FC = () => {
       showToast('Please enter both name and email.', 'error');
       return;
     }
-    if (newPassword && newPassword.length < 6) {
-      showToast('Password must be at least 6 characters long.', 'error');
-      return;
-    }
 
     addTeamMember(
       {
@@ -92,8 +82,7 @@ export const TeamPage: React.FC = () => {
         assignedBy: `${user.name} (${user.role})`,
         assignedCardIds: [],
         activatedCards: [],
-      },
-      newPassword.trim() || 'Amit@&1202'
+      }
     );
 
     // Reset and close
@@ -101,7 +90,6 @@ export const TeamPage: React.FC = () => {
     setNewEmail('');
     setNewPhone('+91 ');
     setNewRole('Field Agent');
-    setNewPassword('Amit@&1202');
     setIsInviteModalOpen(false);
   };
 
@@ -121,7 +109,6 @@ export const TeamPage: React.FC = () => {
   const handleOpenMemberDetail = (member: TeamMember) => {
     setSelectedMember(member);
     setModalRole(member.role);
-    setMemberPassword('');
   };
 
   const handleSaveModalRole = () => {
@@ -831,71 +818,31 @@ export const TeamPage: React.FC = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                     <Lock size={16} style={{ color: '#0B63E5' }} />
                     <h4 style={{ fontSize: '13.5px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
-                      User Account Password (Admin Only)
+                      User Account Password & Access (Admin Only)
                     </h4>
                   </div>
 
                   {isAdmin ? (
                     <div>
                       <p style={{ fontSize: '11.5px', color: '#64748B', margin: '0 0 10px 0' }}>
-                        As Admin, you can set or change the login password for {selectedMember.name} ({selectedMember.email}).
+                        As Admin, you can dispatch an official Firebase password reset link to {selectedMember.name} ({selectedMember.email}) so they can securely set or reset their credentials.
                       </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ position: 'relative', flex: 1 }}>
-                          <input
-                            type={showMemberPassword ? 'text' : 'password'}
-                            value={memberPassword}
-                            onChange={(e) => setMemberPassword(e.target.value)}
-                            placeholder="Enter new password (min 6 chars)"
-                            style={{
-                              width: '100%',
-                              padding: '8px 36px 8px 12px',
-                              borderRadius: '8px',
-                              border: '1px solid #CBD5E1',
-                              fontSize: '13px',
-                              color: '#0F172A',
-                              outline: 'none',
-                              backgroundColor: '#FFFFFF',
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowMemberPassword(!showMemberPassword)}
-                            style={{
-                              position: 'absolute',
-                              right: '8px',
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#94A3B8',
-                              cursor: 'pointer',
-                              padding: '2px',
-                              display: 'flex',
-                            }}
-                            aria-label={showMemberPassword ? 'Hide password' : 'Show password'}
-                          >
-                            {showMemberPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                          </button>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!memberPassword || memberPassword.trim().length < 6) {
-                              showToast('Password must be at least 6 characters long.', 'error');
-                              return;
-                            }
-                            const res = updateUserPasswordByAdmin(selectedMember.email, memberPassword.trim());
-                            if (res.success) {
-                              setMemberPassword('');
-                            }
-                          }}
-                          className="btn-primary"
-                          style={{ padding: '8px 16px', fontSize: '12.5px', whiteSpace: 'nowrap' }}
-                        >
-                          Save Password
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const res = await updateUserPasswordByAdmin(selectedMember.email);
+                          if (res.success) {
+                            showToast(res.message, 'success');
+                          } else {
+                            showToast(res.message, 'error');
+                          }
+                        }}
+                        className="btn-primary"
+                        style={{ padding: '8px 16px', fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <Mail size={14} />
+                        <span>Send Password Reset Email</span>
+                      </button>
                     </div>
                   ) : (
                     <div style={{ fontSize: '12px', color: '#64748B' }}>
@@ -1111,49 +1058,15 @@ export const TeamPage: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                  User Account Password (min 6 chars) *
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showNewPassword ? 'text' : 'password'}
-                    required
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Enter password (default: Amit@&1202)"
-                    style={{
-                      width: '100%',
-                      padding: '9px 38px 9px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid #CBD5E1',
-                      fontSize: '13px',
-                      color: '#0F172A',
-                      outline: 'none',
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    style={{
-                      position: 'absolute',
-                      right: '10px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#94A3B8',
-                      cursor: 'pointer',
-                      padding: '4px',
-                      display: 'flex',
-                    }}
-                    aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+              <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <Mail size={15} style={{ color: '#0B63E5' }} />
+                  <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#0F172A' }}>
+                    Firebase Authentication Invitation
+                  </span>
                 </div>
-                <span style={{ fontSize: '11px', color: '#64748B', marginTop: '4px', display: 'block' }}>
-                  Admin can set custom password or keep default Amit@&1202.
+                <span style={{ fontSize: '11.5px', color: '#64748B', display: 'block', lineHeight: 1.4 }}>
+                  New members authenticate directly via Firebase Authentication. A password setup invitation link will be sent to their email.
                 </span>
               </div>
 

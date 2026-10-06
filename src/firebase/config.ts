@@ -1,4 +1,5 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
 import {
   getFirestore,
   doc,
@@ -67,6 +68,7 @@ export function saveActiveFirebaseConfig(config: Partial<FirebaseCustomConfig>) 
 // Initialize Firebase App Instance
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
+let auth: Auth | null = null;
 let isInitialized = false;
 
 try {
@@ -77,14 +79,45 @@ try {
     app = getApps()[0];
   }
   db = getFirestore(app);
+  auth = getAuth(app);
   isInitialized = true;
-  console.log(`[Firebase] Initialized Firestore client for project: "${config.projectId}"`);
+  console.log(`[Firebase] Initialized Firebase Auth and Firestore client for project: "${config.projectId}"`);
 } catch (err) {
   console.warn('Firebase initialization warning (using local persistent fallback):', err);
   isInitialized = false;
 }
 
-export { app, db, isInitialized };
+export { app, db, auth, isInitialized };
+
+export interface FirestoreUserData {
+  email?: string;
+  name?: string;
+  role?: string;
+  active?: boolean;
+  phone?: string;
+  location?: string;
+  bio?: string;
+  department?: string;
+  createdAt?: any;
+}
+
+/**
+ * Fetch authorized user record from Firestore: users/{uid}
+ */
+export async function getUserDocFromFirestore(uid: string): Promise<FirestoreUserData | null> {
+  if (!db) return null;
+  try {
+    const userDocRef = doc(db, 'users', uid.trim());
+    const snap = await getDoc(userDocRef);
+    if (snap.exists()) {
+      return snap.data() as FirestoreUserData;
+    }
+    return null;
+  } catch (err) {
+    console.error(`[Firebase] Error fetching user doc for uid "${uid}":`, err);
+    return null;
+  }
+}
 
 // =========================================================================
 // FIRESTORE DATABASE SERVICE API

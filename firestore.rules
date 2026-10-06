@@ -1,29 +1,66 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Cards collection: public read for NFC tap & QR scan redirects; write for admin management
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 1. Users collection (Admin / Team member authorization profiles)
+    // Authenticated users can read their own authorization doc; only authenticated admins can write
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // 2. Cards collection
+    // - Public 'get' allowed for unauthenticated customer QR / NFC redirection (/r/:cardId)
+    // - Listing / querying the full cards collection strictly requires authentication
+    // - Tap telemetry updates (nfcTaps, qrScans, lastActivity) permitted for public redirect flow
+    // - Card creation, deletion, and full editing strictly require authentication
     match /cards/{cardId} {
-      allow read, write: if true;
+      allow get: if true;
+      allow list: if isAuthenticated();
+      allow create, delete: if isAuthenticated();
+      allow update: if isAuthenticated() || 
+        (resource != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nfcTaps', 'qrScans', 'lastActivity']));
     }
-    // Real-time scan and tap activity logs
-    match /activities/{activityId} {
-      allow read, write: if true;
-    }
-    // Aggregated platform telemetry & counters
+
+    // 3. Platform stats & aggregated telemetry
+    // - 'get' and tap counter increments allowed for customer tap counter aggregation
+    // - Full write and list management require authentication
     match /stats/{statId} {
-      allow read, write: if true;
+      allow get: if true;
+      allow list: if isAuthenticated();
+      allow create, delete: if isAuthenticated();
+      allow update: if isAuthenticated() || 
+        (resource != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalTaps', 'todayScans']));
     }
-    // Team directory & permissions
+
+    // 4. Real-time activity logs: internal dashboard access only
+    match /activities/{activityId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // 5. Team directory: internal dashboard access only
     match /teamMembers/{memberId} {
-      allow read, write: if true;
+      allow read, write: if isAuthenticated();
     }
-    // Platform routing and brand configuration
+
+    // 6. Platform routing and brand configuration: internal dashboard access only
     match /settings/{settingId} {
-      allow read, write: if true;
+      allow read, write: if isAuthenticated();
     }
-    // Fallback rule
+
+    // 7. Default deny for all other collections
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }
+

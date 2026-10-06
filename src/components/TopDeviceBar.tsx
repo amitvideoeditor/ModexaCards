@@ -11,7 +11,6 @@ export const TopDeviceBar: React.FC = () => {
     navigateTo,
     openActivateModal,
     isAuthenticated,
-    setIsAuthenticated,
     user,
   } = useApp();
 
@@ -141,11 +140,6 @@ export const TopDeviceBar: React.FC = () => {
                   key={s.id}
                   type="button"
                   onClick={() => {
-                    if (s.id === 'login') {
-                      setIsAuthenticated(false);
-                    } else {
-                      setIsAuthenticated(true);
-                    }
                     navigateTo(s.id);
                   }}
                   style={{

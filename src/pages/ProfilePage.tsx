@@ -57,7 +57,7 @@ export const ProfilePage: React.FC = () => {
     showToast('Profile updated successfully.', 'success');
   };
 
-  const handlePasswordUpdate = (e: React.FormEvent) => {
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPassword || !newPassword) {
       showToast('Please enter both current and new password.', 'error');
@@ -67,7 +67,7 @@ export const ProfilePage: React.FC = () => {
       showToast('New passwords do not match.', 'error');
       return;
     }
-    const res = updatePassword(currentPassword, newPassword);
+    const res = await updatePassword(currentPassword, newPassword);
     if (res.success) {
       setCurrentPassword('');
       setNewPassword('');

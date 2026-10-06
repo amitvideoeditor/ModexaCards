@@ -5,7 +5,7 @@ import { ReviewTapLogo } from '../components/ReviewTapLogo';
 import cardWithTextImg from '../assets/review-card-with-text.png';
 
 export const LoginPage: React.FC = () => {
-  const { login, resetPassword, navigateTo, showToast } = useApp();
+  const { login, sendPasswordResetLink, navigateTo, showToast } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -15,12 +15,6 @@ export const LoginPage: React.FC = () => {
   // Forgot / Reset Password state
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [resetError, setResetError] = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
@@ -34,36 +28,16 @@ export const LoginPage: React.FC = () => {
       setResetError('Please enter your registered email address.');
       return;
     }
-    if (!currentPassword) {
-      setResetError('Please enter your current password.');
-      return;
-    }
-    if (!newPassword || newPassword.length < 6) {
-      setResetError('New password must be at least 6 characters long.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setResetError('Passwords do not match. Please verify both fields.');
-      return;
-    }
 
     setIsResetting(true);
     try {
-      const res = resetPassword(cleanMail, currentPassword, newPassword);
+      const res = await sendPasswordResetLink(cleanMail);
       if (res.success) {
         setResetSuccess(res.message);
-        setEmail(cleanMail);
-        setPassword('');
-        setCurrentPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
         showToast(res.message, 'success');
-        setTimeout(() => {
-          setIsForgotPassword(false);
-          setResetSuccess('');
-        }, 1800);
       } else {
         setResetError(res.message);
+        showToast(res.message, 'error');
       }
     } finally {
       setIsResetting(false);
@@ -188,7 +162,7 @@ export const LoginPage: React.FC = () => {
                     Reset Password
                   </h2>
                   <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>
-                    Enter your registered email, current password, and choose a new password.
+                    Enter your registered email address to receive a secure Firebase password reset link.
                   </p>
                 </div>
 
@@ -224,165 +198,6 @@ export const LoginPage: React.FC = () => {
                       outline: 'none',
                     }}
                   />
-                </div>
-
-                {/* Current Password */}
-                <div style={{ position: 'relative' }}>
-                  <Lock
-                    size={17}
-                    style={{
-                      position: 'absolute',
-                      left: '14px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#94A3B8',
-                    }}
-                  />
-                  <input
-                    type={showCurrentPassword ? 'text' : 'password'}
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Current Password"
-                    required
-                    style={{
-                      width: '100%',
-                      paddingLeft: '40px',
-                      paddingRight: '40px',
-                      paddingTop: '10px',
-                      paddingBottom: '10px',
-                      backgroundColor: '#F8FAFC',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      color: '#0F172A',
-                      outline: 'none',
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    style={{
-                      position: 'absolute',
-                      right: '12px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#94A3B8',
-                      border: 'none',
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      padding: '4px',
-                      display: 'flex',
-                    }}
-                    aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
-                  >
-                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-
-                {/* New Password */}
-                <div style={{ position: 'relative' }}>
-                  <Lock
-                    size={17}
-                    style={{
-                      position: 'absolute',
-                      left: '14px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#94A3B8',
-                    }}
-                  />
-                  <input
-                    type={showNewPassword ? 'text' : 'password'}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="New Password (min 6 chars)"
-                    required
-                    style={{
-                      width: '100%',
-                      paddingLeft: '40px',
-                      paddingRight: '40px',
-                      paddingTop: '10px',
-                      paddingBottom: '10px',
-                      backgroundColor: '#F8FAFC',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      color: '#0F172A',
-                      outline: 'none',
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    style={{
-                      position: 'absolute',
-                      right: '12px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#94A3B8',
-                      border: 'none',
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      padding: '4px',
-                      display: 'flex',
-                    }}
-                    aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-
-                {/* Confirm New Password */}
-                <div style={{ position: 'relative' }}>
-                  <Lock
-                    size={17}
-                    style={{
-                      position: 'absolute',
-                      left: '14px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#94A3B8',
-                    }}
-                  />
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm New Password"
-                    required
-                    style={{
-                      width: '100%',
-                      paddingLeft: '40px',
-                      paddingRight: '40px',
-                      paddingTop: '10px',
-                      paddingBottom: '10px',
-                      backgroundColor: '#F8FAFC',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      color: '#0F172A',
-                      outline: 'none',
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    style={{
-                      position: 'absolute',
-                      right: '12px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#94A3B8',
-                      border: 'none',
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      padding: '4px',
-                      display: 'flex',
-                    }}
-                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
                 </div>
 
                 {resetError && (
@@ -427,7 +242,7 @@ export const LoginPage: React.FC = () => {
                   className="btn-primary"
                   style={{ width: '100%', padding: '11px', borderRadius: '8px', marginTop: '2px' }}
                 >
-                  {isResetting ? 'Saving New Password...' : 'Save New Password & Login'}
+                  {isResetting ? 'Sending Reset Link...' : 'Send Password Reset Link'}
                 </button>
               </form>
             ) : (
@@ -654,7 +469,7 @@ export const LoginPage: React.FC = () => {
 };
 
 export const MobileLoginPage: React.FC = () => {
-  const { login, resetPassword, navigateTo, showToast } = useApp();
+  const { login, sendPasswordResetLink, navigateTo, showToast } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -664,12 +479,6 @@ export const MobileLoginPage: React.FC = () => {
   // Mobile Forgot / Reset Password state
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [resetError, setResetError] = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
@@ -683,37 +492,13 @@ export const MobileLoginPage: React.FC = () => {
       setResetError('Please enter your registered email address.');
       return;
     }
-    if (!currentPassword) {
-      setResetError('Please enter your current password.');
-      return;
-    }
-    if (!newPassword || newPassword.length < 6) {
-      setResetError('New password must be at least 6 characters long.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setResetError('Passwords do not match. Please verify both fields.');
-      return;
-    }
 
     setIsResetting(true);
     try {
-      const res = resetPassword(cleanMail, currentPassword, newPassword);
+      const res = await sendPasswordResetLink(cleanMail);
       if (res.success) {
         setResetSuccess(res.message);
-        setEmail(cleanMail);
-        setPassword('');
-        setCurrentPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
         showToast(res.message, 'success');
-        // Auto-login with the new password
-        const autoLog = await login(cleanMail, newPassword);
-        if (autoLog.success) {
-          setTimeout(() => {
-            navigateTo('dashboard');
-          }, 800);
-        }
       } else {
         setResetError(res.message);
         showToast(res.message, 'error');
@@ -817,7 +602,7 @@ export const MobileLoginPage: React.FC = () => {
             fontWeight: 400,
           }}
         >
-          {isForgotPassword ? 'Enter registered email, current password, and new password' : 'Activate Google Review Cards instantly'}
+          {isForgotPassword ? 'Enter registered email address to receive password reset link' : 'Activate Google Review Cards instantly'}
         </p>
 
         {isForgotPassword ? (
@@ -869,174 +654,6 @@ export const MobileLoginPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Current Password Container */}
-            <div
-              style={{
-                border: '1.5px solid #E2E8F0',
-                borderRadius: '14px',
-                backgroundColor: '#FFFFFF',
-                padding: '8px 14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                textAlign: 'left',
-              }}
-            >
-              <Lock size={18} style={{ color: '#64748B', flexShrink: 0 }} />
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 500, lineHeight: 1 }}>
-                  Current Password
-                </span>
-                <input
-                  type={showCurrentPassword ? 'text' : 'password'}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter current password"
-                  required
-                  style={{
-                    border: 'none',
-                    outline: 'none',
-                    backgroundColor: 'transparent',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    color: '#0F172A',
-                    padding: '3px 0 0 0',
-                    width: '100%',
-                  }}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: '#64748B',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-
-            {/* New Password Container */}
-            <div
-              style={{
-                border: '1.5px solid #E2E8F0',
-                borderRadius: '14px',
-                backgroundColor: '#FFFFFF',
-                padding: '8px 14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                textAlign: 'left',
-              }}
-            >
-              <Lock size={18} style={{ color: '#64748B', flexShrink: 0 }} />
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 500, lineHeight: 1 }}>
-                  New Password (min 6 chars)
-                </span>
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password"
-                  required
-                  style={{
-                    border: 'none',
-                    outline: 'none',
-                    backgroundColor: 'transparent',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    color: '#0F172A',
-                    padding: '3px 0 0 0',
-                    width: '100%',
-                  }}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowNewPassword(!showNewPassword)}
-                aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: '#64748B',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-
-            {/* Confirm New Password Container */}
-            <div
-              style={{
-                border: '1.5px solid #E2E8F0',
-                borderRadius: '14px',
-                backgroundColor: '#FFFFFF',
-                padding: '8px 14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                textAlign: 'left',
-              }}
-            >
-              <Lock size={18} style={{ color: '#64748B', flexShrink: 0 }} />
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 500, lineHeight: 1 }}>
-                  Confirm Password
-                </span>
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-type new password"
-                  required
-                  style={{
-                    border: 'none',
-                    outline: 'none',
-                    backgroundColor: 'transparent',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    color: '#0F172A',
-                    padding: '3px 0 0 0',
-                    width: '100%',
-                  }}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: '#64748B',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-
             {resetError && (
               <div
                 style={{
@@ -1075,7 +692,7 @@ export const MobileLoginPage: React.FC = () => {
               </div>
             )}
 
-            {/* Save New Password Button */}
+            {/* Send Reset Link Button */}
             <button
               type="submit"
               disabled={isResetting}
@@ -1110,7 +727,7 @@ export const MobileLoginPage: React.FC = () => {
                   }}
                 />
               ) : (
-                'Save Password & Login'
+                'Send Password Reset Link'
               )}
             </button>
 
